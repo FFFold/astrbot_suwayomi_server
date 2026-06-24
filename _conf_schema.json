@@ -1,0 +1,49 @@
+{
+  "server_url": {
+    "description": "Suwayomi-Server 地址",
+    "type": "string",
+    "default": "http://localhost:9330",
+    "hint": "例如 http://192.168.1.100:9330"
+  },
+  "auth_mode": {
+    "description": "认证模式",
+    "type": "string",
+    "default": "none",
+    "options": ["none", "basic", "jwt"],
+    "labels": ["无认证", "Basic 认证", "JWT 认证"]
+  },
+  "username": {
+    "description": "认证用户名",
+    "type": "string",
+    "default": ""
+  },
+  "password": {
+    "description": "认证密码",
+    "type": "string",
+    "default": ""
+  },
+  "check_interval": {
+    "description": "更新检查间隔（分钟）",
+    "type": "int",
+    "default": 60,
+    "hint": "每隔多久检查一次漫画更新"
+  },
+  "max_pages": {
+    "description": "单次阅读最大发送页数",
+    "type": "int",
+    "default": 30
+  },
+  "send_mode": {
+    "description": "图片发送模式",
+    "type": "string",
+    "default": "image",
+    "options": ["image", "forward"],
+    "labels": ["直接发图", "合并转发"]
+  },
+  "default_source_id": {
+    "description": "默认搜索源 ID",
+    "type": "int",
+    "default": 0,
+    "hint": "0 表示搜索所有已安装源"
+  }
+}
