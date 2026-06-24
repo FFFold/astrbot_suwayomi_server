@@ -491,7 +491,13 @@ class SuwayomiPlugin(Star):
                 try:
                     chapters = await self.client.get_chapters(manga_id)
                     if not chapters:
-                        continue
+                        # Manga has no chapters in DB, try fetching from source
+                        try:
+                            chapters = await self.client.fetch_chapters(manga_id)
+                        except Exception as e:
+                            logger.warning(f"[{PLUGIN_NAME}] 拉取漫画 {title} (ID:{manga_id}) 章节失败: {e}")
+                        if not chapters:
+                            continue
 
                     new_chapters = []
                     max_id = latest_stored

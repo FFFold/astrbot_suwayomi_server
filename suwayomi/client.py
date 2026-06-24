@@ -140,6 +140,14 @@ class SuwayomiClient:
         )
         return data["fetchChapterPages"]["pages"]
 
+    async def fetch_chapters(self, manga_id: int) -> list[Chapter]:
+        """Fetch chapters from source (triggers network request to manga source)."""
+        data = await self._raw_query(
+            'mutation($mid:Int!){fetchChapters(input:{mangaId:$mid}){chapters{id url name chapterNumber uploadDate isRead isDownloaded isBookmarked lastPageRead sourceOrder mangaId pageCount}}}',
+            {"mid": manga_id},
+        )
+        return [Chapter.from_dict(c) for c in data["fetchChapters"]["chapters"]]
+
     async def enqueue_download(self, chapter_ids: list[int]) -> None:
         await self._raw_query(
             'mutation($ids:[Int!]!){enqueueChapterDownloads(input:{ids:$ids}){downloadStatus{state}}}',
@@ -148,7 +156,7 @@ class SuwayomiClient:
 
     async def update_library(self) -> None:
         await self._raw_query(
-            'mutation{updateLibrary(input:{categories:null}){updateStatus{isRunning}}}'
+            'mutation{updateLibrary(input:{categories:null}){updateStatus{state}}}'
         )
 
     async def get_library_mangas(self) -> list[Manga]:
