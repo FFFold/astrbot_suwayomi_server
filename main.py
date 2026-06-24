@@ -100,36 +100,65 @@ class SuwayomiPlugin(Star):
         except asyncio.CancelledError:
             pass
 
+    async def _download_one(
+        self, session: aiohttp.ClientSession, url: str, dest: Path, retries: int = 3
+    ) -> bool:
+        """Download a single image with exponential backoff retry."""
+        for attempt in range(retries):
+            try:
+                async with session.get(url, timeout=aiohttp.ClientTimeout(total=30)) as resp:
+                    if resp.status == 200:
+                        data = await resp.read()
+                        ext = ".jpg"
+                        ct = resp.headers.get("Content-Type", "")
+                        if "png" in ct:
+                            ext = ".png"
+                        elif "webp" in ct:
+                            ext = ".webp"
+                        dest = dest.with_suffix(ext)
+                        dest.write_bytes(data)
+                        return True
+                    elif resp.status < 500:
+                        logger.warning(f"[{PLUGIN_NAME}] 图片下载失败 HTTP {resp.status}: {url}")
+                        return False
+                    # 5xx: retryable
+                    logger.warning(f"[{PLUGIN_NAME}] 图片下载 HTTP {resp.status}，重试 {attempt + 1}/{retries}: {url}")
+            except (aiohttp.ClientError, asyncio.TimeoutError) as e:
+                logger.warning(f"[{PLUGIN_NAME}] 图片下载超时/网络错误，重试 {attempt + 1}/{retries}: {e}")
+            except Exception as e:
+                logger.warning(f"[{PLUGIN_NAME}] 图片下载异常: {e}")
+                return False
+            if attempt < retries - 1:
+                await asyncio.sleep(0.5 * (2 ** attempt))
+        return False
+
     async def _download_images(self, urls: list[str]) -> list[str]:
-        """Download images to temp files. Returns list of local file paths."""
+        """Download images in parallel with retry. Returns list of local file paths (empty string for failures)."""
         tmp_dir = Path(tempfile.mkdtemp(prefix="suwayomi_"))
-        paths = []
         try:
-            async with aiohttp.ClientSession() as session:
+            connector = aiohttp.TCPConnector(limit=6)
+            async with aiohttp.ClientSession(connector=connector) as session:
+                tasks = []
                 for i, url in enumerate(urls):
-                    try:
-                        async with session.get(url, timeout=aiohttp.ClientTimeout(total=30)) as resp:
-                            if resp.status == 200:
-                                data = await resp.read()
-                                ext = ".jpg"
-                                ct = resp.headers.get("Content-Type", "")
-                                if "png" in ct:
-                                    ext = ".png"
-                                elif "webp" in ct:
-                                    ext = ".webp"
-                                path = tmp_dir / f"{i:04d}{ext}"
-                                path.write_bytes(data)
-                                paths.append(str(path))
-                            else:
-                                logger.warning(f"[{PLUGIN_NAME}] 图片下载失败 HTTP {resp.status}: {url}")
-                                paths.append("")  # placeholder to keep index aligned
-                    except Exception as e:
-                        logger.warning(f"[{PLUGIN_NAME}] 图片下载异常: {e}")
-                        paths.append("")
+                    dest = tmp_dir / f"{i:04d}.jpg"
+                    tasks.append(self._download_one(session, url, dest))
+                results = await asyncio.gather(*tasks, return_exceptions=True)
+
+            paths = []
+            for i, result in enumerate(results):
+                if isinstance(result, Exception):
+                    logger.warning(f"[{PLUGIN_NAME}] 图片 {i + 1} 下载异常: {result}")
+                    paths.append("")
+                elif result is True:
+                    # Find the actual file (extension may have changed)
+                    matches = sorted(tmp_dir.glob(f"{i:04d}.*"))
+                    paths.append(str(matches[-1]) if matches else "")
+                else:
+                    paths.append("")
+            return paths
         except Exception:
             shutil.rmtree(tmp_dir, ignore_errors=True)
             raise
-        return paths
 
     # ── Command Group ──────────────────────────────────────────────
 
