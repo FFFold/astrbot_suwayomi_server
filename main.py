@@ -101,17 +101,17 @@ class SuwayomiPlugin(Star):
     def manga_group(self):
         pass
 
-    # ── 漫画源 ────────────────────────────────────────────────────
+    # ── 漫画 源 ────────────────────────────────────────────────────
 
     @manga_group.command("源")
     async def list_sources(self, event: AstrMessageEvent):
-        '''列出所有已安装的漫画源'''
+        '''列出所有已安装的漫画 源'''
         try:
             sources = await self.client.get_sources()
             if not sources:
-                yield event.plain_result("未找到已安装的漫画源，请在 Suwayomi WebUI 中安装扩展。")
+                yield event.plain_result("未找到已安装的漫画 源，请在 Suwayomi WebUI 中安装扩展。")
                 return
-            lines = ["📚 已安装的漫画源:"]
+            lines = ["📚 已安装的漫画 源:"]
             for i, src in enumerate(sources, 1):
                 lines.append(f"  [{i}] {src.display_name} ({src.lang})")
             yield event.plain_result("\n".join(lines))
@@ -125,11 +125,11 @@ class SuwayomiPlugin(Star):
 
     @manga_group.command("搜索")
     async def search_manga(self, event: AstrMessageEvent, keyword: str):
-        '''搜索漫画。用法: 漫画搜索 <关键词> [源名]'''
+        '''搜索漫画。用法: /漫画 搜索 <关键词> [源名]'''
         try:
             sources = await self.client.get_sources()
             if not sources:
-                yield event.plain_result("未找到已安装的漫画源。")
+                yield event.plain_result("未找到已安装的漫画 源。")
                 return
 
             source_filter = None
@@ -181,7 +181,7 @@ class SuwayomiPlugin(Star):
                 yield event.plain_result("未找到相关漫画，请确认关键词。")
                 return
 
-            lines.append("\n回复「漫画订阅 <编号>」订阅，如「漫画订阅 1」")
+            lines.append("\n回复「漫画 订阅 <编号>」订阅，如「漫画 订阅 1」")
             self._set_search_cache(event.unified_msg_origin, cache)
             yield event.plain_result("\n".join(lines))
 
@@ -195,12 +195,12 @@ class SuwayomiPlugin(Star):
 
     @manga_group.command("订阅")
     async def subscribe_manga(self, event: AstrMessageEvent, index: str):
-        '''订阅漫画。用法: 漫画订阅 <搜索结果编号>'''
+        '''订阅漫画。用法: /漫画 订阅 <搜索结果编号>'''
         try:
             manga = self._get_cached_manga(event.unified_msg_origin, index)
 
             if manga is None:
-                yield event.plain_result("未找到该编号的漫画，请先使用「漫画搜索」。")
+                yield event.plain_result("未找到该编号的漫画，请先使用「漫画 搜索」。")
                 return
 
             await self.sub_mgr.subscribe(manga.id, manga.title, manga.source_id, event.unified_msg_origin)
@@ -212,7 +212,7 @@ class SuwayomiPlugin(Star):
 
     @manga_group.command("取消订阅")
     async def unsubscribe_manga(self, event: AstrMessageEvent, manga_id_or_name: str):
-        '''取消订阅。用法: 漫画取消订阅 <漫画ID或名称>'''
+        '''取消订阅。用法: /漫画 取消订阅 <漫画ID或名称>'''
         try:
             umo = event.unified_msg_origin
             manga_id = None
@@ -243,7 +243,7 @@ class SuwayomiPlugin(Star):
         try:
             subs = await self.sub_mgr.get_subscriptions(event.unified_msg_origin)
             if not subs:
-                yield event.plain_result("📭 你还没有订阅任何漫画。使用「漫画搜索」来查找并订阅。")
+                yield event.plain_result("📭 你还没有订阅任何漫画。使用「漫画 搜索」来查找并订阅。")
                 return
             lines = ["📋 你的订阅列表:"]
             for s in subs:
@@ -291,7 +291,7 @@ class SuwayomiPlugin(Star):
 
     @manga_group.command("章节")
     async def list_chapters(self, event: AstrMessageEvent, manga_name_or_id: str):
-        '''查看漫画章节列表。用法: 漫画章节 <漫画名或ID>'''
+        '''查看漫画章节列表。用法: /漫画 章节 <漫画名或ID>'''
         try:
             manga, err = await self._resolve_manga(event, manga_name_or_id)
             if err or manga is None:
@@ -344,7 +344,7 @@ class SuwayomiPlugin(Star):
 
     @manga_group.command("阅读")
     async def read_chapter(self, event: AstrMessageEvent, manga_name_or_id: str, chapter_num: str):
-        '''阅读漫画章节。用法: 漫画阅读 <漫画名或ID> <章节号或ID:数字>'''
+        '''阅读漫画章节。用法: /漫画 阅读 <漫画名或ID> <章节号或ID:数字>'''
         try:
             manga, err = await self._resolve_manga(event, manga_name_or_id)
             if err or manga is None:
@@ -370,7 +370,7 @@ class SuwayomiPlugin(Star):
                     lines = [f"找到多个第 {_fmt_chapter_num(chapter_num_f)} 话，请使用 ID 指定:"]
                     for ch in matches:
                         lines.append(f"  ID:{ch.id} - {ch.name}")
-                    lines.append(f"\n发送「漫画阅读 {manga_name_or_id} id:<ID>」选择")
+                    lines.append(f"\n发送「漫画 阅读 {manga_name_or_id} id:<ID>」选择")
                     yield event.plain_result("\n".join(lines))
                     return
 
@@ -421,7 +421,7 @@ class SuwayomiPlugin(Star):
 
     @manga_group.command("下载")
     async def download_chapter(self, event: AstrMessageEvent, manga_name_or_id: str, chapter_num: str):
-        '''下载漫画章节。用法: 漫画下载 <漫画名或ID> <章节号或ID:数字>'''
+        '''下载漫画章节。用法: /漫画 下载 <漫画名或ID> <章节号或ID:数字>'''
         try:
             manga, err = await self._resolve_manga(event, manga_name_or_id)
             if err or manga is None:
@@ -446,7 +446,7 @@ class SuwayomiPlugin(Star):
                     lines = [f"找到多个第 {_fmt_chapter_num(chapter_num_f)} 话，请使用 ID 指定:"]
                     for ch in matches:
                         lines.append(f"  ID:{ch.id} - {ch.name}")
-                    lines.append(f"\n发送「漫画下载 {manga_name_or_id} id:<ID>」选择")
+                    lines.append(f"\n发送「漫画 下载 {manga_name_or_id} id:<ID>」选择")
                     yield event.plain_result("\n".join(lines))
                     return
 
@@ -515,7 +515,7 @@ class SuwayomiPlugin(Star):
 
             sent_umo: set[str] = set()
             for title, ch_names, subscribers in updated_mangas:
-                msg = f"📢「{title}」更新了！\n新增章节：{', '.join(ch_names)}\n发送「漫画阅读 {title} {_fmt_chapter_num(float(ch_names[-1].lstrip('#')))}」开始阅读"
+                msg = f"📢「{title}」更新了！\n新增章节：{', '.join(ch_names)}\n发送「漫画 阅读 {title} {_fmt_chapter_num(float(ch_names[-1].lstrip('#')))}」开始阅读"
                 chain = MessageChain().message(msg)
                 for umo in subscribers:
                     if umo not in sent_umo:
