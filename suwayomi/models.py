@@ -39,8 +39,8 @@ class Manga:
     @classmethod
     def from_dict(cls, d: dict) -> Manga:
         return cls(
-            id=d["id"],
-            source_id=d.get("sourceId", 0),
+            id=int(d["id"]),
+            source_id=int(d.get("sourceId", 0)),
             url=d.get("url", ""),
             title=d.get("title", ""),
             status=d.get("status", "UNKNOWN"),
@@ -71,18 +71,18 @@ class Chapter:
     @classmethod
     def from_dict(cls, d: dict) -> Chapter:
         return cls(
-            id=d["id"],
+            id=int(d["id"]),
             url=d.get("url", ""),
             name=d.get("name", ""),
-            chapter_number=d.get("chapterNumber", 0.0),
-            upload_date=d.get("uploadDate", 0),
+            chapter_number=float(d.get("chapterNumber", 0.0)),
+            upload_date=int(d.get("uploadDate", 0)),
             is_read=d.get("isRead", False),
             is_downloaded=d.get("isDownloaded", False),
             is_bookmarked=d.get("isBookmarked", False),
-            last_page_read=d.get("lastPageRead", 0),
-            source_order=d.get("sourceOrder", 0),
-            manga_id=d.get("mangaId", 0),
-            page_count=d.get("pageCount", 0),
+            last_page_read=int(d.get("lastPageRead", 0)),
+            source_order=int(d.get("sourceOrder", 0)),
+            manga_id=int(d.get("mangaId", 0)),
+            page_count=int(d.get("pageCount", 0)),
         )
 
 
