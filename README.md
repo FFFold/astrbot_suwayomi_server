@@ -2,6 +2,8 @@
 
 AstrBot 插件 — 将 [Suwayomi-Server](https://github.com/Suwayomi/Suwayomi-Server) 作为漫画后端，为聊天用户提供漫画搜索、阅读、下载和订阅更新推送服务。
 
+> **首次配置？** 请参阅 [Suwayomi-Server 配置教程](docs/setup.md)，包含 Docker 部署、漫画源安装、插件配置的完整步骤。
+
 ## 命令一览
 
 | 命令 | 说明 |
@@ -115,8 +117,6 @@ Bot:  找到多个第 7 话，请使用 ID 指定:
 - AstrBot >= 4.16
 - Suwayomi-Server 已部署并可访问
 - Suwayomi 中已安装至少一个漫画源扩展
-
-> **首次配置？** 请参阅 [Suwayomi-Server 配置教程](docs/setup.md)，包含 Docker 部署、漫画源安装、插件配置的完整步骤。
 
 ## 许可证
 

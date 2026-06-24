@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/).
 
+## [0.1.2] - 2026-06-24
+
+### Added
+
+- **配置教程** — 新增 `docs/setup.md`，包含 Suwayomi-Server Docker 部署、漫画源安装、插件配置的完整步骤及常见问题解答
+- **AGENTS.md** — 新增开发者快速上手指南，记录 GraphQL API 陷阱和 AstrBot 框架注意事项
+
+### Fixed
+
+- 配置教程中移除废弃的 Docker Compose `version` 键、修正 YAML 引号、澄清认证模式映射关系
+
 ## [0.1.1] - 2026-06-24
 
 ### Fixed
