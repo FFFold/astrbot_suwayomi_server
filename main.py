@@ -415,7 +415,10 @@ class SuwayomiPlugin(Star):
                 yield event.plain_result(f"未找到「{manga.title}」指定的章节。")
                 return
 
-            await event.send(event.plain_result(f"📖 正在加载「{manga.title}」第 {_fmt_chapter_num(target.chapter_number)} 话，请稍后..."))
+            try:
+                await event.send(event.plain_result(f"📖 正在加载「{manga.title}」第 {_fmt_chapter_num(target.chapter_number)} 话，请稍后..."))
+            except Exception:
+                pass
             pages = await self.client.fetch_chapter_pages(target.id)
             if not pages:
                 yield event.plain_result(f"第 {_fmt_chapter_num(target.chapter_number)} 话暂无可用页面。")
