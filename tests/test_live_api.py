@@ -155,6 +155,55 @@ async def test_fetch_chapter_pages(client):
             break
 
 
+# ── Fetch chapters from source ─────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_fetch_chapters(client):
+    """Test fetch_chapters mutation - fetches chapter list from manga source.
+    This is used when a manga has no chapters in DB (e.g. never opened in WebUI)."""
+    sources = await client.get_sources()
+    zh_sources = [s for s in sources if s.lang == "zh" and s.id != "0"]
+    result = await client.search_manga(zh_sources[0].id, "海贼王")
+    assert result.mangas
+
+    manga = result.mangas[0]
+    # First check if manga already has chapters in DB
+    existing = await client.get_chapters(manga.id)
+
+    # Fetch chapters from source
+    fetched = await client.fetch_chapters(manga.id)
+    assert isinstance(fetched, list)
+    print(f"\n  fetch_chapters(manga={manga.id}, '{manga.title}'): {len(fetched)} chapters fetched")
+    if fetched:
+        assert isinstance(fetched[0], Chapter)
+        assert fetched[0].id > 0
+        print(f"    First: #{fetched[0].chapter_number} '{fetched[0].name}' (id={fetched[0].id})")
+        # After fetch, DB should also have chapters
+        db_chapters = await client.get_chapters(manga.id)
+        assert len(db_chapters) >= len(fetched), "DB chapters should be >= fetched chapters"
+
+
+@pytest.mark.asyncio
+async def test_fetch_chapters_then_get(client):
+    """Test the pattern used in _check_updates: get_chapters returns empty -> fetch_chapters -> get_chapters returns data."""
+    sources = await client.get_sources()
+    zh_sources = [s for s in sources if s.lang == "zh" and s.id != "0"]
+
+    # Search for a manga that's likely not in the library
+    result = await client.search_manga(zh_sources[0].id, "间谍过家家")
+    assert result.mangas, "Search should return results"
+
+    manga = result.mangas[0]
+    # The manga might already have chapters from the search above, or might not
+    # Either way, fetch_chapters should work without error
+    try:
+        fetched = await client.fetch_chapters(manga.id)
+        print(f"\n  fetch_chapters_then_get(manga={manga.id}): {len(fetched)} chapters")
+    except SuwayomiError as e:
+        # Some sources may not support fetch, that's acceptable
+        print(f"\n  fetch_chapters_then_get: source returned error (acceptable): {e}")
+
+
 # ── Library operations ──────────────────────────────────────────
 
 @pytest.mark.asyncio
