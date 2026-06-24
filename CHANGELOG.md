@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/).
 
+## [0.1.1] - 2026-06-24
+
+### Fixed
+
+- **QQ 合并转发修复** — 使用 `send_mode: forward` 时，所有页面图片现在正确打包为一条合并转发消息发送，而非每张图片各自一个转发包
+
+### Changed
+
+- **文档重组** — 用户文档（README）与开发者文档（docs/dev/）分离
+- 新增 `docs/dev/development.md`：架构概览、开发环境、测试方法、设计决策
+- 新增 `docs/dev/suwayomi-api.md`：插件实际使用的 GraphQL API 参考
+
 ## [0.1.0] - 2026-06-24
 
 ### Added
