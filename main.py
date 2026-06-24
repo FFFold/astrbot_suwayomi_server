@@ -104,37 +104,32 @@ class SuwayomiPlugin(Star):
         """Download images to temp files. Returns list of local file paths."""
         tmp_dir = Path(tempfile.mkdtemp(prefix="suwayomi_"))
         paths = []
-        async with aiohttp.ClientSession() as session:
-            for i, url in enumerate(urls):
-                try:
-                    async with session.get(url, timeout=aiohttp.ClientTimeout(total=30)) as resp:
-                        if resp.status == 200:
-                            data = await resp.read()
-                            ext = ".jpg"
-                            ct = resp.headers.get("Content-Type", "")
-                            if "png" in ct:
-                                ext = ".png"
-                            elif "webp" in ct:
-                                ext = ".webp"
-                            path = tmp_dir / f"{i:04d}{ext}"
-                            path.write_bytes(data)
-                            paths.append(str(path))
-                        else:
-                            logger.warning(f"[{PLUGIN_NAME}] 图片下载失败 HTTP {resp.status}: {url}")
-                except Exception as e:
-                    logger.warning(f"[{PLUGIN_NAME}] 图片下载异常: {e}")
-        return paths
-
-    @staticmethod
-    def _cleanup_tmp(paths: list[str]):
-        """Remove temp image files and their parent directory."""
-        if not paths:
-            return
         try:
-            parent = Path(paths[0]).parent
-            shutil.rmtree(parent, ignore_errors=True)
+            async with aiohttp.ClientSession() as session:
+                for i, url in enumerate(urls):
+                    try:
+                        async with session.get(url, timeout=aiohttp.ClientTimeout(total=30)) as resp:
+                            if resp.status == 200:
+                                data = await resp.read()
+                                ext = ".jpg"
+                                ct = resp.headers.get("Content-Type", "")
+                                if "png" in ct:
+                                    ext = ".png"
+                                elif "webp" in ct:
+                                    ext = ".webp"
+                                path = tmp_dir / f"{i:04d}{ext}"
+                                path.write_bytes(data)
+                                paths.append(str(path))
+                            else:
+                                logger.warning(f"[{PLUGIN_NAME}] 图片下载失败 HTTP {resp.status}: {url}")
+                                paths.append("")  # placeholder to keep index aligned
+                    except Exception as e:
+                        logger.warning(f"[{PLUGIN_NAME}] 图片下载异常: {e}")
+                        paths.append("")
         except Exception:
-            pass
+            shutil.rmtree(tmp_dir, ignore_errors=True)
+            raise
+        return paths
 
     # ── Command Group ──────────────────────────────────────────────
 
@@ -476,8 +471,10 @@ class SuwayomiPlugin(Star):
                 local_paths = await self._download_images(page_urls)
 
             def _img(idx: int) -> Comp.Image:
-                if fetch_mode == "download" and idx < len(local_paths):
+                if fetch_mode == "download" and idx < len(local_paths) and local_paths[idx]:
                     return Comp.Image.fromFileSystem(local_paths[idx])
+                if fetch_mode == "download":
+                    logger.warning(f"[{PLUGIN_NAME}] 图片 {idx + 1} 下载失败，回退为 URL 模式")
                 return Comp.Image.fromURL(page_urls[idx])
 
             try:
@@ -503,7 +500,12 @@ class SuwayomiPlugin(Star):
                     yield event.chain_result(chain)
             finally:
                 if local_paths:
-                    self._cleanup_tmp(local_paths)
+                    valid_paths = [p for p in local_paths if p]
+                    if valid_paths:
+                        parent = str(Path(valid_paths[0]).parent)
+                        asyncio.get_event_loop().call_later(
+                            60, lambda d=parent: shutil.rmtree(d, ignore_errors=True)
+                        )
 
         except SuwayomiError as e:
             yield event.plain_result(f"阅读失败: {e}")
