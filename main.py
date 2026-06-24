@@ -401,7 +401,7 @@ class SuwayomiPlugin(Star):
                         name="提示",
                         content=[Comp.Plain(f"... 还有 {len(pages) - max_pages} 页，请到 WebUI 查看")],
                     ))
-                yield event.chain_result(nodes)
+                yield event.chain_result([Comp.Nodes(nodes)])
             else:
                 chain = []
                 for i, page_path in enumerate(pages[:max_pages]):
