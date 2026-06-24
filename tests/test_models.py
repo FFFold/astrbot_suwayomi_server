@@ -4,7 +4,7 @@ from suwayomi.models import Source, Manga, Chapter, SearchResult
 def test_source_from_dict():
     data = {"id": 123, "name": "mangadex", "lang": "en", "displayName": "MangaDex", "supportsLatest": True}
     src = Source.from_dict(data)
-    assert src.id == 123
+    assert src.id == "123"
     assert src.name == "mangadex"
     assert src.display_name == "MangaDex"
     assert src.lang == "en"
@@ -105,7 +105,7 @@ def test_chapter_minimal_fields():
 def test_source_minimal_fields():
     data = {"id": 1, "name": "src"}
     src = Source.from_dict(data)
-    assert src.id == 1
+    assert src.id == "1"
     assert src.name == "src"
     assert src.display_name == "src"  # falls back to name
     assert src.lang == ""

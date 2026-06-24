@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 
 @dataclass
 class Source:
-    id: int
+    id: str
     name: str
     lang: str
     display_name: str
@@ -14,7 +14,7 @@ class Source:
     @classmethod
     def from_dict(cls, d: dict) -> Source:
         return cls(
-            id=d["id"],
+            id=str(d["id"]),
             name=d["name"],
             lang=d.get("lang", ""),
             display_name=d.get("displayName", d.get("name", "")),

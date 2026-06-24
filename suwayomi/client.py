@@ -105,17 +105,17 @@ class SuwayomiClient:
         )
         return [Source.from_dict(s) for s in data["sources"]["nodes"]]
 
-    async def search_manga(self, source_id: int, query: str, page: int = 1) -> SearchResult:
+    async def search_manga(self, source_id: str | int, query: str, page: int = 1) -> SearchResult:
         data = await self._raw_query(
-            'mutation($sid:Long!,$q:String!,$p:Int!){fetchSourceManga(input:{source:$sid,type:SEARCH,page:$p,query:$q}){mangas{id title url sourceId status thumbnailUrl inLibrary author artist description genre}hasNextPage}}',
-            {"sid": source_id, "q": query, "p": page},
+            'mutation($sid:LongString!,$q:String!,$p:Int!){fetchSourceManga(input:{source:$sid,type:SEARCH,page:$p,query:$q}){mangas{id title url sourceId status thumbnailUrl inLibrary author artist description genre}hasNextPage}}',
+            {"sid": str(source_id), "q": query, "p": page},
         )
         return SearchResult.from_dict(data["fetchSourceManga"])
 
-    async def get_popular(self, source_id: int, page: int = 1) -> SearchResult:
+    async def get_popular(self, source_id: str | int, page: int = 1) -> SearchResult:
         data = await self._raw_query(
-            'mutation($sid:Long!,$p:Int!){fetchSourceManga(input:{source:$sid,type:POPULAR,page:$p}){mangas{id title url sourceId status thumbnailUrl inLibrary author artist description genre}hasNextPage}}',
-            {"sid": source_id, "p": page},
+            'mutation($sid:LongString!,$p:Int!){fetchSourceManga(input:{source:$sid,type:POPULAR,page:$p}){mangas{id title url sourceId status thumbnailUrl inLibrary author artist description genre}hasNextPage}}',
+            {"sid": str(source_id), "p": page},
         )
         return SearchResult.from_dict(data["fetchSourceManga"])
 
@@ -159,7 +159,7 @@ class SuwayomiClient:
 
     async def search_manga_by_title(self, title: str, limit: int = 10) -> list[Manga]:
         data = await self._raw_query(
-            'query($t:String!,$n:Int!){mangas(condition:{title:{ilike:$t}},first:$n){nodes{id title url sourceId status thumbnailUrl inLibrary author artist description genre}}}',
-            {"t": f"%{title}%", "n": limit},
+            'query($t:String!,$n:Int!){mangas(filter:{title:{includes:$t}},first:$n){nodes{id title url sourceId status thumbnailUrl inLibrary author artist description genre}}}',
+            {"t": title, "n": limit},
         )
         return [Manga.from_dict(m) for m in data["mangas"]["nodes"]]
