@@ -167,20 +167,17 @@ async def test_fetch_chapters(client):
     assert result.mangas
 
     manga = result.mangas[0]
-    # First check if manga already has chapters in DB
-    existing = await client.get_chapters(manga.id)
-
     # Fetch chapters from source
     fetched = await client.fetch_chapters(manga.id)
     assert isinstance(fetched, list)
+    assert len(fetched) > 0, f"fetch_chapters should return chapters for '{manga.title}'"
+    assert isinstance(fetched[0], Chapter)
+    assert fetched[0].id > 0
     print(f"\n  fetch_chapters(manga={manga.id}, '{manga.title}'): {len(fetched)} chapters fetched")
-    if fetched:
-        assert isinstance(fetched[0], Chapter)
-        assert fetched[0].id > 0
-        print(f"    First: #{fetched[0].chapter_number} '{fetched[0].name}' (id={fetched[0].id})")
-        # After fetch, DB should also have chapters
-        db_chapters = await client.get_chapters(manga.id)
-        assert len(db_chapters) >= len(fetched), "DB chapters should be >= fetched chapters"
+    print(f"    First: #{fetched[0].chapter_number} '{fetched[0].name}' (id={fetched[0].id})")
+    # After fetch, DB should also have chapters
+    db_chapters = await client.get_chapters(manga.id)
+    assert len(db_chapters) >= len(fetched), "DB chapters should be >= fetched chapters"
 
 
 @pytest.mark.asyncio
@@ -194,14 +191,13 @@ async def test_fetch_chapters_then_get(client):
     assert result.mangas, "Search should return results"
 
     manga = result.mangas[0]
-    # The manga might already have chapters from the search above, or might not
-    # Either way, fetch_chapters should work without error
-    try:
-        fetched = await client.fetch_chapters(manga.id)
-        print(f"\n  fetch_chapters_then_get(manga={manga.id}): {len(fetched)} chapters")
-    except SuwayomiError as e:
-        # Some sources may not support fetch, that's acceptable
-        print(f"\n  fetch_chapters_then_get: source returned error (acceptable): {e}")
+    # Fetch chapters from source
+    fetched = await client.fetch_chapters(manga.id)
+    assert isinstance(fetched, list)
+    # Verify DB is populated after fetch
+    db_chapters = await client.get_chapters(manga.id)
+    assert len(db_chapters) > 0, "get_chapters should return data after fetch_chapters"
+    print(f"\n  fetch_chapters_then_get(manga={manga.id}): {len(fetched)} fetched, {len(db_chapters)} in DB")
 
 
 # ── Library operations ──────────────────────────────────────────
