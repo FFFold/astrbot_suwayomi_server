@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import asyncio
+import math
+import time
 
 import astrbot.api.message_components as Comp
 from astrbot.api import AstrBotConfig, logger
@@ -8,15 +10,24 @@ from astrbot.api.event import filter, AstrMessageEvent, MessageChain
 from astrbot.api.star import Context, Star
 
 from .suwayomi.client import SuwayomiClient, SuwayomiError
-from .suwayomi.models import SearchResult
+from .suwayomi.models import Manga, SearchResult
 from .utils.subscription import SubscriptionManager
 
 PLUGIN_NAME = "astrbot_suwayomi_server"
 
+# Search cache TTL in seconds
+_CACHE_TTL = 600  # 10 minutes
+
 
 def _fmt_chapter_num(num: float) -> int | float:
     """Format chapter number: return int if it's a whole number, else float."""
-    return int(num) if num == int(num) else num
+    try:
+        if math.isnan(num) or math.isinf(num):
+            return num
+        return int(num) if num == int(num) else num
+    except (ValueError, OverflowError):
+        return num
+
 
 STATUS_EMOJI = {
     "ONGOING": "连载中",
@@ -40,14 +51,17 @@ class SuwayomiPlugin(Star):
             password=config.get("password", ""),
         )
         self.sub_mgr = SubscriptionManager(self.context.get_kv_storage())
-        self._search_cache: dict[str, dict[str, object]] = {}
+        self._search_cache: dict[str, tuple[float, dict[str, Manga]]] = {}
         self._update_lock = asyncio.Lock()
         self._bg_task: asyncio.Task | None = None
 
-        interval = config.get("check_interval", 60) * 60
-        self._bg_task = asyncio.create_task(self._update_loop(interval))
-
         logger.info(f"[{PLUGIN_NAME}] 插件已加载，服务器: {config.get('server_url')}")
+
+    @filter.on_astrbot_loaded()
+    async def on_loaded(self):
+        """Start background update task after AstrBot event loop is running."""
+        interval = self.config.get("check_interval", 60) * 60
+        self._bg_task = asyncio.create_task(self._update_loop(interval))
 
     async def terminate(self):
         if self._bg_task and not self._bg_task.done():
@@ -55,12 +69,27 @@ class SuwayomiPlugin(Star):
         await self.client.close()
         logger.info(f"[{PLUGIN_NAME}] 插件已卸载")
 
+    def _get_cached_manga(self, umo: str, key: str) -> Manga | None:
+        """Get manga from search cache, respecting TTL."""
+        entry = self._search_cache.get(umo)
+        if entry is None:
+            return None
+        ts, cache = entry
+        if time.time() - ts > _CACHE_TTL:
+            del self._search_cache[umo]
+            return None
+        return cache.get(key)
+
+    def _set_search_cache(self, umo: str, cache: dict[str, Manga]):
+        """Store search results in cache with timestamp."""
+        self._search_cache[umo] = (time.time(), cache)
+
     async def _update_loop(self, interval: float):
         try:
             while True:
                 await asyncio.sleep(interval)
                 try:
-                    await self._check_updates(None)
+                    await self._check_updates()
                 except Exception as e:
                     logger.error(f"[{PLUGIN_NAME}] 后台更新检查失败: {e}")
         except asyncio.CancelledError:
@@ -138,12 +167,12 @@ class SuwayomiPlugin(Star):
 
             lines = []
             idx = 1
-            cache: dict[str, object] = {}
+            cache: dict[str, Manga] = {}
             for source_name, result in all_results:
                 if result.mangas:
                     lines.append(f"\n🔍 搜索结果（源: {source_name}）:")
                     for m in result.mangas:
-                        status = STATUS_EMOJI.get(m.status, m.status)
+                        status = STATUS_EMOJI.get(m.status, "未知")
                         lines.append(f"  [{idx}] {m.title} - {status}")
                         cache[str(idx)] = m
                         idx += 1
@@ -153,7 +182,7 @@ class SuwayomiPlugin(Star):
                 return
 
             lines.append("\n回复「漫画订阅 <编号>」订阅，如「漫画订阅 1」")
-            self._search_cache[event.unified_msg_origin] = cache
+            self._set_search_cache(event.unified_msg_origin, cache)
             yield event.plain_result("\n".join(lines))
 
         except SuwayomiError as e:
@@ -168,21 +197,13 @@ class SuwayomiPlugin(Star):
     async def subscribe_manga(self, event: AstrMessageEvent, index: int):
         '''订阅漫画。用法: 漫画订阅 <搜索结果编号>'''
         try:
-            umo = event.unified_msg_origin
-            cache = self._search_cache.get(umo, {})
-            key = str(index)
-
-            manga = cache.get(key)
+            manga = self._get_cached_manga(event.unified_msg_origin, str(index))
 
             if manga is None:
                 yield event.plain_result("未找到该编号的漫画，请先使用「漫画搜索」。")
                 return
 
-            from .suwayomi.models import Manga as MangaModel
-            if not isinstance(manga, MangaModel):
-                yield event.plain_result("数据异常，请重新搜索。")
-                return
-            await self.sub_mgr.subscribe(manga.id, manga.title, manga.source_id, umo)
+            await self.sub_mgr.subscribe(manga.id, manga.title, manga.source_id, event.unified_msg_origin)
             yield event.plain_result(f"✅ 已订阅「{manga.title}」，有新章节时会推送。")
 
         except Exception as e:
@@ -234,8 +255,8 @@ class SuwayomiPlugin(Star):
 
     # ── 漫画名解析 ────────────────────────────────────────────────
 
-    async def _resolve_manga(self, event: AstrMessageEvent, name_or_id: str):
-        """Resolve manga by ID or name. Returns (Manga, error_message)."""
+    async def _resolve_manga(self, event: AstrMessageEvent, name_or_id: str) -> tuple[Manga | None, str | None]:
+        """Resolve manga by ID or name. Returns (Manga, None) on success or (None, error_msg) on failure."""
         try:
             manga_id = int(name_or_id)
             manga = await self.client.get_manga(manga_id)
@@ -273,8 +294,8 @@ class SuwayomiPlugin(Star):
         '''查看漫画章节列表。用法: 漫画章节 <漫画名或ID>'''
         try:
             manga, err = await self._resolve_manga(event, manga_name_or_id)
-            if err:
-                yield event.plain_result(err)
+            if err or manga is None:
+                yield event.plain_result(err or "未找到该漫画。")
                 return
 
             chapters = await self.client.get_chapters(manga.id)
@@ -307,8 +328,8 @@ class SuwayomiPlugin(Star):
         '''阅读漫画章节。用法: 漫画阅读 <漫画名或ID> <章节号>'''
         try:
             manga, err = await self._resolve_manga(event, manga_name_or_id)
-            if err:
-                yield event.plain_result(err)
+            if err or manga is None:
+                yield event.plain_result(err or "未找到该漫画。")
                 return
 
             chapters = await self.client.get_chapters(manga.id)
@@ -368,8 +389,8 @@ class SuwayomiPlugin(Star):
         '''下载漫画章节。用法: 漫画下载 <漫画名或ID> <章节号>'''
         try:
             manga, err = await self._resolve_manga(event, manga_name_or_id)
-            if err:
-                yield event.plain_result(err)
+            if err or manga is None:
+                yield event.plain_result(err or "未找到该漫画。")
                 return
 
             chapters = await self.client.get_chapters(manga.id)
@@ -394,16 +415,13 @@ class SuwayomiPlugin(Star):
 
     # ── 更新检查 ──────────────────────────────────────────────────
 
-    async def _check_updates(self, event: AstrMessageEvent | None):
-        """Check for manga updates and push to subscribers. event=None for background runs."""
+    async def _check_updates(self, event: AstrMessageEvent | None = None) -> str:
+        """Check for manga updates. Returns a summary string. Pushes to subscribers if updates found."""
         async with self._update_lock:
             all_subs = await self.sub_mgr.get_all_subscriptions()
             if not all_subs:
-                if event:
-                    await event.send(event.plain_result("📭 没有订阅的漫画，无需检查更新。"))
-                return
+                return "📭 没有订阅的漫画，无需检查更新。"
 
-            # Trigger library update to discover new chapters from sources
             try:
                 await self.client.update_library()
             except Exception as e:
@@ -435,9 +453,7 @@ class SuwayomiPlugin(Star):
 
                     if new_chapters:
                         await self.sub_mgr.update_latest_chapter(manga_id, max_id)
-                        ch_names = []
-                        for ch in new_chapters:
-                            ch_names.append(f"#{_fmt_chapter_num(ch.chapter_number)}")
+                        ch_names = [f"#{_fmt_chapter_num(ch.chapter_number)}" for ch in new_chapters]
                         updated_mangas.append((title, ch_names, subscribers))
 
                 except Exception as e:
@@ -445,13 +461,11 @@ class SuwayomiPlugin(Star):
                     continue
 
             if not updated_mangas:
-                if event:
-                    await event.send(event.plain_result("✅ 所有订阅的漫画暂无更新。"))
-                return
+                return "✅ 所有订阅的漫画暂无更新。"
 
             sent_umo: set[str] = set()
             for title, ch_names, subscribers in updated_mangas:
-                msg = f"📢「{title}」更新了！\n新增章节：{', '.join(ch_names)}\n发送「漫画阅读 {title} {ch_names[-1].lstrip('#')}」开始阅读"
+                msg = f"📢「{title}」更新了！\n新增章节：{', '.join(ch_names)}\n发送「漫画阅读 {title} {_fmt_chapter_num(float(ch_names[-1].lstrip('#')))}」开始阅读"
                 chain = MessageChain().message(msg)
                 for umo in subscribers:
                     if umo not in sent_umo:
@@ -461,17 +475,17 @@ class SuwayomiPlugin(Star):
                         except Exception as e:
                             logger.warning(f"[{PLUGIN_NAME}] 推送到 {umo} 失败: {e}")
 
-            if event:
-                summary_lines = [f"✅ 发现 {len(updated_mangas)} 部漫画更新："]
-                for title, ch_names, _ in updated_mangas:
-                    summary_lines.append(f"  • {title}: {', '.join(ch_names)}")
-                await event.send(event.plain_result("\n".join(summary_lines)))
+            summary_lines = [f"✅ 发现 {len(updated_mangas)} 部漫画更新："]
+            for title, ch_names, _ in updated_mangas:
+                summary_lines.append(f"  • {title}: {', '.join(ch_names)}")
+            return "\n".join(summary_lines)
 
     @manga_group.command("更新")
     async def manual_update(self, event: AstrMessageEvent):
         '''手动检查漫画更新'''
         try:
-            await self._check_updates(event)
+            summary = await self._check_updates(event)
+            yield event.plain_result(summary)
         except Exception as e:
             logger.error(f"[{PLUGIN_NAME}] manual_update error: {e}")
             yield event.plain_result("更新检查失败。")

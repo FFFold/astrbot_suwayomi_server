@@ -30,6 +30,7 @@ class SuwayomiClient:
         self._jwt_refresh_token: str | None = None
         self._username = username
         self._password = password
+        self._refreshing: bool = False
 
     async def _get_session(self) -> aiohttp.ClientSession:
         if self._session is None or self._session.closed:
@@ -69,7 +70,8 @@ class SuwayomiClient:
         url = f"{self.server_url}/api/graphql"
 
         async with session.post(url, json=payload, headers=headers) as resp:
-            if resp.status == 401 and self.auth_mode == "jwt" and self._jwt_refresh_token:
+            if resp.status == 401 and self.auth_mode == "jwt" and self._jwt_refresh_token and not self._refreshing:
+                await resp.read()  # consume response before retry
                 await self._refresh_jwt()
                 headers["Authorization"] = f"Bearer {self._jwt_access_token}"
                 async with session.post(url, json=payload, headers=headers) as retry_resp:
@@ -83,11 +85,19 @@ class SuwayomiClient:
         return data.get("data", {})
 
     async def _refresh_jwt(self):
-        result = await self._raw_query(
-            'mutation($r:String!){refreshToken(input:{refreshToken:$r}){accessToken}}',
-            {"r": self._jwt_refresh_token},
-        )
-        self._jwt_access_token = result["refreshToken"]["accessToken"]
+        self._refreshing = True
+        try:
+            result = await self._raw_query(
+                'mutation($r:String!){refreshToken(input:{refreshToken:$r}){accessToken}}',
+                {"r": self._jwt_refresh_token},
+            )
+            self._jwt_access_token = result["refreshToken"]["accessToken"]
+        except Exception:
+            self._jwt_access_token = None
+            self._jwt_refresh_token = None
+            raise
+        finally:
+            self._refreshing = False
 
     async def get_sources(self) -> list[Source]:
         data = await self._raw_query(
