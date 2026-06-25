@@ -45,7 +45,7 @@ def parse_download_args(raw_message: str, default_fmt: str = "zip") -> tuple[str
         cmd_idx = tokens.index("下载")
         args = tokens[cmd_idx + 1:]
     except ValueError:
-        args = tokens[2:]
+        return "", "", default_fmt
 
     fmt = default_fmt
     if len(args) >= 3 and args[-1].lower() in ("zip", "pdf", "cbz"):

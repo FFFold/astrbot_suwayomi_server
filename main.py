@@ -702,23 +702,19 @@ class SuwayomiPlugin(Star):
     @manga_group.command("下载")
     async def download_chapter(self, event: AstrMessageEvent, manga_name_or_id: str, chapter_num: str = ""):
         '''下载漫画章节并打包发送。用法: /漫画 下载 <漫画名或ID> <章节号或ID:数字> [zip/pdf/cbz]'''
-        if not chapter_num:
-            yield event.plain_result(
-                "用法: /漫画 下载 <漫画名或ID> <章节号> [格式]\n"
-                "示例: /漫画 下载 一拳超人 1\n"
-                "指定格式: /漫画 下载 一拳超人 1 pdf\n"
-                "指定章节 ID: /漫画 下载 一拳超人 ID:123"
-            )
-            return
-
         # Parse from raw message (AstrBot may not pass trailing args to handler)
         default_fmt = self.config.get("download_format", "zip")
         manga_name_or_id, chapter_num, fmt = parse_download_args(
             event.message_str, default_fmt
         )
 
-        if not chapter_num:
-            yield event.plain_result("请指定章节号。")
+        if not manga_name_or_id or not chapter_num:
+            yield event.plain_result(
+                "用法: /漫画 下载 <漫画名或ID> <章节号> [格式]\n"
+                "示例: /漫画 下载 一拳超人 1\n"
+                "指定格式: /漫画 下载 一拳超人 1 pdf\n"
+                "指定章节 ID: /漫画 下载 一拳超人 ID:123"
+            )
             return
 
         try:
