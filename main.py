@@ -579,7 +579,7 @@ class SuwayomiPlugin(Star):
 
     async def _fetch_pages_local(
         self, chapter_id: int, max_pages: int = 0
-    ) -> tuple[list[str], list[str]]:
+    ) -> tuple[int, list[str], list[str]]:
         """Fetch chapter pages and download images to local temp dir.
 
         Args:
@@ -587,16 +587,17 @@ class SuwayomiPlugin(Star):
             max_pages: Max pages to fetch (0 = all).
 
         Returns:
-            (page_urls, local_paths) — local_paths has empty strings for failed downloads.
+            (total_pages, page_urls, local_paths) — total_pages is the untruncated count.
         """
         pages = await self.client.fetch_chapter_pages(chapter_id)
         if not pages:
-            return [], []
+            return 0, [], []
+        total_pages = len(pages)
         if max_pages > 0:
             pages = pages[:max_pages]
         page_urls = [self.client.build_image_url(p) for p in pages]
         local_paths = await self._download_images(page_urls)
-        return page_urls, local_paths
+        return total_pages, page_urls, local_paths
 
     # ── 章节阅读 ──────────────────────────────────────────────────
 
@@ -632,8 +633,7 @@ class SuwayomiPlugin(Star):
             fetch_mode = self.config.get("image_fetch_mode", "url")
 
             if fetch_mode == "download":
-                page_urls, local_paths = await self._fetch_pages_local(target.id, max_pages)
-                total_pages = len(page_urls)
+                total_pages, page_urls, local_paths = await self._fetch_pages_local(target.id, max_pages)
             else:
                 pages = await self.client.fetch_chapter_pages(target.id)
                 if not pages:
@@ -736,7 +736,7 @@ class SuwayomiPlugin(Star):
             ))
 
             # Fetch page URLs and download images locally
-            page_urls, local_paths = await self._fetch_pages_local(target.id)
+            _, page_urls, local_paths = await self._fetch_pages_local(target.id)
 
             if not page_urls:
                 yield event.plain_result(f"第 {num_label} 话暂无可用页面。")
@@ -753,24 +753,26 @@ class SuwayomiPlugin(Star):
             # Step 4: Pack
             tmp_dir = Path(valid_paths[0]).parent
             safe_title = "".join(c for c in manga.title if c not in r'<>:"/\|?*')[:50]
+            safe_label = "".join(c for c in str(num_label) if c not in r'<>:"/\|?*')
             ext_map = {"zip": "zip", "pdf": "pdf", "cbz": "cbz"}
             file_ext = ext_map.get(fmt, "zip")
-            output_path = tmp_dir / f"{safe_title}_第{num_label}话.{file_ext}"
+            output_path = tmp_dir / f"{safe_title}_第{safe_label}话.{file_ext}"
 
             try:
+                loop = asyncio.get_running_loop()
                 if fmt == "pdf":
-                    pack_pdf(valid_paths, output_path)
+                    await loop.run_in_executor(None, pack_pdf, valid_paths, output_path)
                 elif fmt == "cbz":
-                    pack_cbz(valid_paths, output_path)
+                    await loop.run_in_executor(None, pack_cbz, valid_paths, output_path)
                 else:
-                    pack_zip(valid_paths, output_path)
+                    await loop.run_in_executor(None, pack_zip, valid_paths, output_path)
             except Exception as e:
                 logger.error(f"[{PLUGIN_NAME}] 打包失败: {e}")
                 yield event.plain_result(f"打包失败: {e}")
                 return
 
             # Step 5: Send file
-            filename = f"{safe_title}_第{num_label}话.{file_ext}"
+            filename = f"{safe_title}_第{safe_label}话.{file_ext}"
             try:
                 chain = [Comp.File(file=str(output_path), name=filename)]
                 yield event.chain_result(chain)
@@ -783,9 +785,15 @@ class SuwayomiPlugin(Star):
                 yield event.chain_result(chain)
 
             # Step 6: Cleanup after delay
-            asyncio.get_event_loop().call_later(
-                120, lambda d=str(tmp_dir): shutil.rmtree(d, ignore_errors=True)
-            )
+            async def _cleanup():
+                await asyncio.sleep(120)
+                try:
+                    await asyncio.get_running_loop().run_in_executor(
+                        None, lambda: shutil.rmtree(tmp_dir, ignore_errors=True)
+                    )
+                except Exception:
+                    pass
+            asyncio.create_task(_cleanup())
 
         except SuwayomiError as e:
             yield event.plain_result(f"下载失败: {e}")
