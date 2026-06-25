@@ -16,8 +16,8 @@
 ## Commands
 
 ```bash
-# Unit tests (26 tests, no network needed)
-uv run pytest tests/test_models.py tests/test_client.py tests/test_subscription.py -v
+# Unit tests (39 tests, no network needed)
+uv run pytest tests/test_pack.py tests/test_models.py tests/test_subscription.py -v
 
 # Integration tests (requires live Suwayomi-Server)
 uv run pytest tests/test_live_api.py -v -s
@@ -43,7 +43,7 @@ main.py (SuwayomiPlugin)
 - `main.py`: Plugin entry, all 10 commands under `@filter.command_group("漫画")`, background update loop
 - `suwayomi/client.py`: All Suwayomi interaction via `POST /api/graphql`; supports none/basic/jwt auth
 - `suwayomi/models.py`: Pure dataclasses with `from_dict()` factory methods
-- `utils/pack.py`: Pack images into ZIP, CBZ, or PDF files
+- `utils/pack.py`: Pack images into ZIP, CBZ, or PDF files; `parse_download_args()` for command arg parsing
 - `utils/subscription.py`: Persists subscriptions via AstrBot's `get_kv_data()`/`put_kv_data()`
 
 ## Critical Quirks
@@ -70,12 +70,16 @@ main.py (SuwayomiPlugin)
 
 11. **Chapter data is lazy-loaded**: `fetchSourceManga` (search) only returns metadata. Chapters must be fetched separately via `fetchChapters` mutation. Use `_get_or_fetch_chapters()` helper which handles caching: reads from DB first, fetches from source if stale or empty. Cache duration is controlled by `chapter_cache_hours` config.
 
+12. **AstrBot arg splitting**: AstrBot's command handler splits arguments by spaces, so trailing keywords like `zip`/`pdf`/`cbz` or `--刷新` may be lost. Always parse from `event.message_str` for commands with optional trailing args.
+
 ## Key Helper Methods
 
 - `_get_or_fetch_chapters(manga_id, force=False)` — Get chapters from DB, auto-fetch from source if stale or empty. `force=True` bypasses cache. Used by all chapter-related commands.
 - `_get_chapter_timestamp(manga_id)` / `_set_chapter_timestamp(manga_id)` — Manage per-manga chapter fetch timestamps in KV storage.
 - `_fmt_chapter_label(ch, num_counts)` — Format chapter display: `#num name` or `#num name (ID:xxx)` for duplicates. Shared by chapter list and update notifications.
 - `_resolve_manga(event, name_or_id)` — Resolve manga by ID or fuzzy name. Returns `(Manga, None)` or `(None, error_msg)`.
+- `_resolve_chapter(chapters, chapter_num, manga_name_or_id, cmd)` — Resolve chapter by ID or number string. Returns `(Chapter, None)` or `(None, error_msg)`. Shared by read and download.
+- `_fetch_pages_local(chapter_id, max_pages)` — Fetch page URLs and download images to temp dir. Returns `(total_pages, page_urls, local_paths)`. Shared by read and download.
 - `_download_images(urls)` — Parallel download with retry. Returns local file paths.
 - `_download_one(session, url, dest)` — Single image download with exponential backoff retry.
 
@@ -88,6 +92,7 @@ Key non-obvious config values (in `_conf_schema.json`):
 - `download_format`: `zip` (ZIP archive), `pdf` (PDF document), or `cbz` (comic book archive). Default `zip`.
 - `send_mode`: `image` (direct) or `forward` (QQ merged forward, uses `Comp.Nodes` wrapper)
 - `chapter_cache_hours`: Hours before auto-refreshing chapters from source (default 6). `0` = never auto-refresh, `-1` = always refresh
+- `temp_dir`: Custom temp directory for image downloads. Leave empty for system default. Set to shared directory for Docker environments.
 
 ## Adding New Commands
 

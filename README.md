@@ -14,7 +14,7 @@
     <img src="https://img.shields.io/badge/AstrBot-%3E%3D4.16-blue?style=flat-square" alt="AstrBot >= 4.16">
     <img src="https://img.shields.io/badge/Python-3.12%2B-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python 3.12+">
     <img src="https://img.shields.io/badge/license-AGPL--3.0-orange?style=flat-square" alt="License AGPL-3.0">
-    <img src="https://img.shields.io/badge/version-0.1.4-8A2BE2?style=flat-square" alt="Version 0.1.4">
+    <img src="https://img.shields.io/badge/version-0.2.0-8A2BE2?style=flat-square" alt="Version 0.2.0">
     <img src="https://img.shields.io/badge/support-8%20platforms-green?style=flat-square" alt="8 platforms">
   </p>
 </p>
@@ -181,6 +181,7 @@ uv pip install -r astrbot_suwayomi_server/requirements.txt
 | `download_retries` | int | `3` | 图片下载失败重试次数（指数退避） |
 | `chapter_cache_hours` | int | `6` | 章节缓存时长（小时）。`0` = 不自动刷新，`-1` = 总是从源刷新 |
 | `download_format` | string | `zip` | 下载打包格式：`zip` / `pdf` / `cbz` |
+| `temp_dir` | string | `""` | 临时文件目录。留空用系统默认，Docker 环境设置共享目录如 `/AstrBot/data/temp` |
 
 ### 认证模式说明
 

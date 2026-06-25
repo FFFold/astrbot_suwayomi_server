@@ -5,19 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/).
 
-## [Unreleased]
+## [0.2.0] - 2026-06-25
 
 ### Added
 
 - **下载打包发送** — `/漫画 下载` 现在将章节页面打包为 ZIP/PDF/CBZ 文件直接发送到聊天
 - **下载格式配置** — 新增 `download_format` 配置项，可选 `zip`（默认）/ `pdf` / `cbz`
+- **临时目录配置** — 新增 `temp_dir` 配置项，Docker 环境可设置共享目录
 - **PDF 打包依赖** — 新增 `img2pdf>=0.5.0` 运行时依赖
-- **打包工具模块** — 新增 `utils/pack.py`，提供 ZIP/CBZ/PDF 打包函数
+- **打包工具模块** — 新增 `utils/pack.py`，提供 ZIP/CBZ/PDF 打包函数和 `parse_download_args()` 参数解析
 - **共享章节解析** — 抽取 `_resolve_chapter` 和 `_fetch_pages_local` 公共方法供阅读和下载复用
 
 ### Changed
 
 - **下载命令重构** — `/漫画 下载` 不再使用 Suwayomi 服务端下载队列，改为本地下载页面图片并打包发送
+- **非阻塞打包** — 打包和清理操作改为异步执行，避免阻塞事件循环
+
+### Fixed
+
+- **AstrBot 参数拆分** — 修复 `--刷新` 和下载格式参数因 AstrBot 参数拆分而丢失的问题，改为从原始消息解析
+- **Windows 文件名** — 修复章节号为 `?` 时文件名包含非法字符的问题
 
 ## [0.1.4] - 2026-06-25
 
