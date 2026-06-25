@@ -873,20 +873,21 @@ class SuwayomiPlugin(Star):
 
             logger.info(f"[{PLUGIN_NAME}] 更新检查完成: 检查 {len(all_subs)} 部漫画，发现 {len(updated_mangas)} 部有更新")
 
-            sent_umo: set[str] = set()
+            user_msgs: dict[str, list[str]] = {}
             for title, ch_info, last_ch, subscribers in updated_mangas:
                 latest_num = _fmt_chapter_num(last_ch.chapter_number)
                 msg = f"📢「{title}」更新了！\n新增章节：{', '.join(ch_info)}\n发送「漫画 阅读 {title} {latest_num}」开始阅读"
-                chain = MessageChain().message(msg)
                 for umo in subscribers:
-                    if umo not in sent_umo:
-                        try:
-                            await self.context.send_message(umo, chain)
-                            sent_umo.add(umo)
-                        except Exception as e:
-                            logger.warning(f"[{PLUGIN_NAME}] 推送到 {umo} 失败: {e}")
+                    user_msgs.setdefault(umo, []).append(msg)
 
-            logger.info(f"[{PLUGIN_NAME}] 更新推送到 {len(sent_umo)} 个会话")
+            for umo, msgs in user_msgs.items():
+                try:
+                    chain = MessageChain().message("\n---\n".join(msgs))
+                    await self.context.send_message(umo, chain)
+                except Exception as e:
+                    logger.warning(f"[{PLUGIN_NAME}] 推送到 {umo} 失败: {e}")
+
+            logger.info(f"[{PLUGIN_NAME}] 更新推送到 {len(user_msgs)} 个会话")
 
             summary_lines = [f"✅ 发现 {len(updated_mangas)} 部漫画更新："]
             for title, ch_info, _, _ in updated_mangas:
