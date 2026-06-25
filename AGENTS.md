@@ -5,6 +5,14 @@
 **Project**: AstrBot plugin integrating Suwayomi-Server for manga search, reading, downloads, and subscription updates.
 **Language**: Python 3.12+ | **Package manager**: uv | **Framework**: AstrBot plugin system
 
+## Documentation
+
+- [贡献指南](CONTRIBUTING.md) — 开发环境搭建、开发流程、提交规范、添加新命令
+- [开发指南](docs/dev/development.md) — 架构详解、设计决策、数据流
+- [Suwayomi API 参考](docs/dev/suwayomi-api.md) — GraphQL API 文档
+- [配置教程](docs/setup.md) — Suwayomi-Server 部署和插件配置
+- [变更日志](CHANGELOG.md) — 版本更新记录
+
 ## Commands
 
 ```bash
