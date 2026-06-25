@@ -295,7 +295,10 @@ class SuwayomiPlugin(Star):
                 return
 
             await self.sub_mgr.subscribe(manga.id, manga.title, manga.source_id, event.unified_msg_origin)
-            await self._get_or_fetch_chapters(manga.id)
+            try:
+                await self._get_or_fetch_chapters(manga.id)
+            except Exception as e:
+                logger.warning(f"[{PLUGIN_NAME}] 拉取「{manga.title}」章节失败: {e}")
             yield event.plain_result(f"✅ 已订阅「{manga.title}」，有新章节时会推送。")
 
         except Exception as e:
@@ -382,13 +385,10 @@ class SuwayomiPlugin(Star):
     # ── 章节获取 ────────────────────────────────────────────────────
 
     async def _get_or_fetch_chapters(self, manga_id: int) -> list:
-        """Get chapters from DB. If empty, fetch from source."""
+        """Get chapters from DB. If empty, fetch from source. Raises on network errors."""
         chapters = await self.client.get_chapters(manga_id)
         if not chapters:
-            try:
-                chapters = await self.client.fetch_chapters(manga_id)
-            except Exception as e:
-                logger.warning(f"[{PLUGIN_NAME}] 拉取章节失败 (manga={manga_id}): {e}")
+            chapters = await self.client.fetch_chapters(manga_id)
         return chapters
 
     # ── 章节列表 ──────────────────────────────────────────────────
