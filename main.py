@@ -137,7 +137,8 @@ class SuwayomiPlugin(Star):
     async def _download_images(self, urls: list[str]) -> list[str]:
         """Download images in parallel with retry. Returns list of local file paths (empty string for failures)."""
         concurrency = self.config.get("download_concurrency", 6)
-        tmp_dir = Path(tempfile.mkdtemp(prefix="suwayomi_"))
+        custom_tmp = self.config.get("temp_dir", "").strip()
+        tmp_dir = Path(tempfile.mkdtemp(prefix="suwayomi_", dir=custom_tmp or None))
         try:
             connector = aiohttp.TCPConnector(limit=concurrency)
             async with aiohttp.ClientSession(connector=connector) as session:
@@ -710,15 +711,36 @@ class SuwayomiPlugin(Star):
             )
             return
 
-        # Parse optional format argument
+        # Parse format from raw message (AstrBot may not pass trailing args)
         fmt = self.config.get("download_format", "zip")
-        parts = chapter_num.strip().split()
-        if parts and parts[-1].lower() in ("zip", "pdf", "cbz"):
-            fmt = parts[-1].lower()
-            chapter_num = " ".join(parts[:-1]) if len(parts) > 1 else ""
-            if not chapter_num:
-                yield event.plain_result("请指定章节号。")
-                return
+        raw = event.message_str.strip()
+        # Extract tokens after the command: /漫画 下载 <...>
+        tokens = raw.split()
+        # Find where the command args start (after "下载")
+        try:
+            cmd_idx = tokens.index("下载")
+            args = tokens[cmd_idx + 1:]
+        except ValueError:
+            args = tokens[2:]  # fallback
+        # Check if last token is a format keyword
+        if len(args) >= 3 and args[-1].lower() in ("zip", "pdf", "cbz"):
+            fmt = args[-1].lower()
+            # Rebuild chapter_num from the middle args
+            chapter_num = " ".join(args[1:-1])
+        elif len(args) >= 2:
+            chapter_num = " ".join(args[1:])
+        else:
+            chapter_num = ""
+        manga_name_or_id = args[0] if args else manga_name_or_id
+
+        if not chapter_num:
+            yield event.plain_result(
+                "用法: /漫画 下载 <漫画名或ID> <章节号> [格式]\n"
+                "示例: /漫画 下载 一拳超人 1\n"
+                "指定格式: /漫画 下载 一拳超人 1 pdf\n"
+                "指定章节 ID: /漫画 下载 一拳超人 ID:123"
+            )
+            return
 
         try:
             manga, err = await self._resolve_manga(event, manga_name_or_id)
