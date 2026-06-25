@@ -378,7 +378,8 @@ class SuwayomiPlugin(Star):
                 return mangas[0], None
             lines = ["找到多个结果，请使用 ID 指定:"]
             for m in mangas:
-                lines.append(f"  ID {m.id}: {m.title}")
+                status = STATUS_EMOJI.get(m.status, "未知")
+                lines.append(f"  ID {m.id}: {m.title} [{status}]")
             return None, "\n".join(lines)
         except Exception as e:
             logger.error(f"[{PLUGIN_NAME}] resolve_manga error: {e}")
@@ -632,8 +633,14 @@ class SuwayomiPlugin(Star):
 
                     if new_chapters:
                         await self.sub_mgr.update_latest_chapter(manga_id, max_id)
-                        ch_names = [f"#{_fmt_chapter_num(ch.chapter_number)}" for ch in new_chapters]
-                        updated_mangas.append((title, ch_names, subscribers))
+                        ch_info = []
+                        for ch in new_chapters:
+                            num = _fmt_chapter_num(ch.chapter_number)
+                            label = f"#{num}"
+                            if ch.name and ch.name != f"第{num}话" and ch.name != f"Chapter {num}":
+                                label += f" {ch.name}"
+                            ch_info.append(label)
+                        updated_mangas.append((title, ch_info, new_chapters[-1], subscribers))
 
                 except Exception as e:
                     logger.warning(f"[{PLUGIN_NAME}] 检查漫画 {title} (ID:{manga_id}) 更新失败: {e}")
@@ -643,8 +650,9 @@ class SuwayomiPlugin(Star):
                 return "✅ 所有订阅的漫画暂无更新。"
 
             sent_umo: set[str] = set()
-            for title, ch_names, subscribers in updated_mangas:
-                msg = f"📢「{title}」更新了！\n新增章节：{', '.join(ch_names)}\n发送「漫画 阅读 {title} {_fmt_chapter_num(float(ch_names[-1].lstrip('#')))}」开始阅读"
+            for title, ch_info, last_ch, subscribers in updated_mangas:
+                latest_num = _fmt_chapter_num(last_ch.chapter_number)
+                msg = f"📢「{title}」更新了！\n新增章节：{', '.join(ch_info)}\n发送「漫画 阅读 {title} {latest_num}」开始阅读"
                 chain = MessageChain().message(msg)
                 for umo in subscribers:
                     if umo not in sent_umo:
@@ -655,8 +663,8 @@ class SuwayomiPlugin(Star):
                             logger.warning(f"[{PLUGIN_NAME}] 推送到 {umo} 失败: {e}")
 
             summary_lines = [f"✅ 发现 {len(updated_mangas)} 部漫画更新："]
-            for title, ch_names, _ in updated_mangas:
-                summary_lines.append(f"  • {title}: {', '.join(ch_names)}")
+            for title, ch_info, _, _ in updated_mangas:
+                summary_lines.append(f"  • {title}: {', '.join(ch_info)}")
             return "\n".join(summary_lines)
 
     @manga_group.command("更新")
