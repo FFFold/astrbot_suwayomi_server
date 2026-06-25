@@ -679,10 +679,16 @@ class SuwayomiPlugin(Star):
                 if local_paths:
                     valid_paths = [p for p in local_paths if p]
                     if valid_paths:
-                        parent = str(Path(valid_paths[0]).parent)
-                        asyncio.get_event_loop().call_later(
-                            60, lambda d=parent: shutil.rmtree(d, ignore_errors=True)
-                        )
+                        parent = Path(valid_paths[0]).parent
+                        async def _read_cleanup():
+                            await asyncio.sleep(60)
+                            try:
+                                await asyncio.get_running_loop().run_in_executor(
+                                    None, lambda: shutil.rmtree(parent, ignore_errors=True)
+                                )
+                            except Exception:
+                                pass
+                        asyncio.create_task(_read_cleanup())
 
         except SuwayomiError as e:
             yield event.plain_result(f"阅读失败: {e}")
