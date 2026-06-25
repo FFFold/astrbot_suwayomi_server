@@ -60,7 +60,7 @@ class SuwayomiPlugin(Star):
         self._update_lock = asyncio.Lock()
         self._bg_task: asyncio.Task | None = None
 
-        logger.info(f"[{PLUGIN_NAME}] 插件已加载，服务器: {config.get('server_url')}")
+        logger.info(f"[{PLUGIN_NAME}] 插件已加载 | 服务器: {config.get('server_url')} | 缓存: {config.get('chapter_cache_hours', 6)}h | 检查间隔: {config.get('check_interval', 60)}min")
 
     @filter.on_astrbot_loaded()
     async def on_loaded(self):
@@ -300,6 +300,7 @@ class SuwayomiPlugin(Star):
                 return
 
             await self.sub_mgr.subscribe(manga.id, manga.title, manga.source_id, event.unified_msg_origin)
+            logger.info(f"[{PLUGIN_NAME}] 用户订阅「{manga.title}」(ID:{manga.id})")
             try:
                 await self._get_or_fetch_chapters(manga.id)
             except Exception as e:
@@ -316,6 +317,7 @@ class SuwayomiPlugin(Star):
         try:
             umo = event.unified_msg_origin
             manga_id = None
+            manga_title = manga_id_or_name
 
             try:
                 manga_id = int(manga_id_or_name)
@@ -324,6 +326,7 @@ class SuwayomiPlugin(Star):
                 for s in subs:
                     if manga_id_or_name in s["title"]:
                         manga_id = s["manga_id"]
+                        manga_title = s["title"]
                         break
 
             if manga_id is None:
@@ -331,6 +334,7 @@ class SuwayomiPlugin(Star):
                 return
 
             await self.sub_mgr.unsubscribe(manga_id, umo)
+            logger.info(f"[{PLUGIN_NAME}] 用户取消订阅「{manga_title}」(ID:{manga_id})")
             yield event.plain_result(f"✅ 已取消订阅（漫画 ID: {manga_id}）。")
 
         except Exception as e:
@@ -434,14 +438,18 @@ class SuwayomiPlugin(Star):
         if cache_hours < -1:
             cache_hours = 0
 
+        logger.debug(f"[{PLUGIN_NAME}] _get_or_fetch_chapters(manga_id={manga_id}, force={force}, cache_hours={cache_hours})")
+
         # -1 means always refresh
         if cache_hours == -1:
             try:
                 chapters = await self.client.fetch_chapters(manga_id)
                 if chapters:
                     await self._set_chapter_timestamp(manga_id)
+                logger.debug(f"[{PLUGIN_NAME}] 从源拉取章节(always): manga_id={manga_id}, {len(chapters) if chapters else 0} 章节")
                 return chapters
             except SuwayomiError:
+                logger.debug(f"[{PLUGIN_NAME}] 源拉取失败，回退DB: manga_id={manga_id}")
                 return await self.client.get_chapters(manga_id)
 
         should_fetch = force
@@ -450,16 +458,20 @@ class SuwayomiPlugin(Star):
             last_ts = await self._get_chapter_timestamp(manga_id)
             if last_ts == 0 or (time.time() - last_ts) > cache_hours * 3600:
                 should_fetch = True
+                logger.debug(f"[{PLUGIN_NAME}] 缓存过期或无记录: manga_id={manga_id}, last_ts={last_ts}")
 
         if not should_fetch:
             chapters = await self.client.get_chapters(manga_id)
             if chapters:
+                logger.debug(f"[{PLUGIN_NAME}] 缓存命中: manga_id={manga_id}, {len(chapters)} 章节")
                 return chapters
             should_fetch = True
+            logger.debug(f"[{PLUGIN_NAME}] DB为空，触发源拉取: manga_id={manga_id}")
 
         chapters = await self.client.fetch_chapters(manga_id)
         if chapters:
             await self._set_chapter_timestamp(manga_id)
+        logger.debug(f"[{PLUGIN_NAME}] 从源拉取章节: manga_id={manga_id}, {len(chapters) if chapters else 0} 章节")
         return chapters
 
     # ── 章节列表 ──────────────────────────────────────────────────
@@ -716,6 +728,7 @@ class SuwayomiPlugin(Star):
 
                     if new_chapters:
                         await self.sub_mgr.update_latest_chapter(manga_id, max_id)
+                        logger.info(f"[{PLUGIN_NAME}] 发现更新: 「{title}」新增 {len(new_chapters)} 章节")
                         # Detect duplicate chapter numbers (same logic as list_chapters)
                         num_count: dict[float, int] = {}
                         for ch in chapters:
@@ -729,7 +742,10 @@ class SuwayomiPlugin(Star):
                     continue
 
             if not updated_mangas:
+                logger.info(f"[{PLUGIN_NAME}] 更新检查完成: 检查 {len(all_subs)} 部漫画，暂无更新")
                 return "✅ 所有订阅的漫画暂无更新。"
+
+            logger.info(f"[{PLUGIN_NAME}] 更新检查完成: 检查 {len(all_subs)} 部漫画，发现 {len(updated_mangas)} 部有更新")
 
             sent_umo: set[str] = set()
             for title, ch_info, last_ch, subscribers in updated_mangas:
@@ -743,6 +759,8 @@ class SuwayomiPlugin(Star):
                             sent_umo.add(umo)
                         except Exception as e:
                             logger.warning(f"[{PLUGIN_NAME}] 推送到 {umo} 失败: {e}")
+
+            logger.info(f"[{PLUGIN_NAME}] 更新推送到 {len(sent_umo)} 个会话")
 
             summary_lines = [f"✅ 发现 {len(updated_mangas)} 部漫画更新："]
             for title, ch_info, _, _ in updated_mangas:
