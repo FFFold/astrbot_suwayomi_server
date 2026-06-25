@@ -183,8 +183,8 @@ class SuwayomiPlugin(Star):
   /漫画 阅读 <漫画名或ID> <章节号>      — 阅读章节
   /漫画 下载 <漫画名或ID> <章节号>      — 下载章节
 
-  重复编号章节可用 id: 指定：
-  /漫画 阅读 <漫画名> id:123
+  重复编号章节可用 ID: 指定：
+  /漫画 阅读 <漫画名> ID:123
 
 🔄 更新
   /漫画 更新  — 手动检查更新（自动推送默认每小时一次）
@@ -380,14 +380,14 @@ class SuwayomiPlugin(Star):
             # Build source ID -> display name map
             try:
                 sources = await self.client.get_sources()
-                src_map = {s.id: s.display_name for s in sources}
+                src_map = {str(s.id): s.display_name for s in sources}
             except Exception:
                 src_map = {}
 
             lines = ["找到多个结果，请使用 ID 指定:"]
             for m in mangas:
                 status = STATUS_EMOJI.get(m.status, "未知")
-                src_name = src_map.get(m.source_id, f"源{m.source_id}")
+                src_name = src_map.get(str(m.source_id), f"源{m.source_id}")
                 lines.append(f"  ID {m.id}: {m.title} [{status}] ({src_name})")
             return None, "\n".join(lines)
         except Exception as e:
@@ -435,15 +435,11 @@ class SuwayomiPlugin(Star):
             for ch in chapters:
                 num_count[ch.chapter_number] = num_count.get(ch.chapter_number, 0) + 1
 
-            display = chapters[:20]
             lines = [f"📖「{manga.title}」章节列表（共 {len(chapters)} 话）:"]
-            for ch in display:
+            for ch in chapters:
                 read_mark = "✅" if ch.is_read else "⬜"
                 dl_mark = " 📥" if ch.is_downloaded else ""
                 lines.append(f"  {read_mark} {self._fmt_chapter_label(ch, num_count)}{dl_mark}")
-
-            if len(chapters) > 20:
-                lines.append(f"  ... 还有 {len(chapters) - 20} 话，请到 WebUI 查看")
 
             yield event.plain_result("\n".join(lines))
 
@@ -467,8 +463,11 @@ class SuwayomiPlugin(Star):
     # ── 章节阅读 ──────────────────────────────────────────────────
 
     @manga_group.command("阅读")
-    async def read_chapter(self, event: AstrMessageEvent, manga_name_or_id: str, chapter_num: str):
+    async def read_chapter(self, event: AstrMessageEvent, manga_name_or_id: str, chapter_num: str = ""):
         '''阅读漫画章节。用法: /漫画 阅读 <漫画名或ID> <章节号或ID:数字>'''
+        if not chapter_num:
+            yield event.plain_result("用法: /漫画 阅读 <漫画名或ID> <章节号>\n示例: /漫画 阅读 一拳超人 1\n指定章节 ID: /漫画 阅读 一拳超人 ID:123")
+            return
         try:
             manga, err = await self._resolve_manga(event, manga_name_or_id)
             if err or manga is None:
@@ -479,7 +478,7 @@ class SuwayomiPlugin(Star):
 
             # Support "id:123" syntax to select chapter by ID
             target = None
-            if chapter_num.startswith("id:"):
+            if chapter_num.lower().startswith("id:"):
                 try:
                     cid = int(chapter_num[3:])
                     target = self._find_chapter_by_id(chapters, cid)
@@ -494,7 +493,7 @@ class SuwayomiPlugin(Star):
                     lines = [f"找到多个第 {_fmt_chapter_num(chapter_num_f)} 话，请使用 ID 指定:"]
                     for ch in matches:
                         lines.append(f"  ID:{ch.id} - {ch.name}")
-                    lines.append(f"\n发送「漫画 阅读 {manga_name_or_id} id:<ID>」选择")
+                    lines.append(f"\n发送「漫画 阅读 {manga_name_or_id} ID:<ID>」选择")
                     yield event.plain_result("\n".join(lines))
                     return
 
@@ -567,8 +566,11 @@ class SuwayomiPlugin(Star):
     # ── 章节下载 ──────────────────────────────────────────────────
 
     @manga_group.command("下载")
-    async def download_chapter(self, event: AstrMessageEvent, manga_name_or_id: str, chapter_num: str):
+    async def download_chapter(self, event: AstrMessageEvent, manga_name_or_id: str, chapter_num: str = ""):
         '''下载漫画章节。用法: /漫画 下载 <漫画名或ID> <章节号或ID:数字>'''
+        if not chapter_num:
+            yield event.plain_result("用法: /漫画 下载 <漫画名或ID> <章节号>\n示例: /漫画 下载 一拳超人 1\n指定章节 ID: /漫画 下载 一拳超人 ID:123")
+            return
         try:
             manga, err = await self._resolve_manga(event, manga_name_or_id)
             if err or manga is None:
@@ -578,7 +580,7 @@ class SuwayomiPlugin(Star):
             chapters = await self._get_or_fetch_chapters(manga.id)
 
             target = None
-            if chapter_num.startswith("id:"):
+            if chapter_num.lower().startswith("id:"):
                 try:
                     cid = int(chapter_num[3:])
                     target = self._find_chapter_by_id(chapters, cid)
@@ -593,7 +595,7 @@ class SuwayomiPlugin(Star):
                     lines = [f"找到多个第 {_fmt_chapter_num(chapter_num_f)} 话，请使用 ID 指定:"]
                     for ch in matches:
                         lines.append(f"  ID:{ch.id} - {ch.name}")
-                    lines.append(f"\n发送「漫画 下载 {manga_name_or_id} id:<ID>」选择")
+                    lines.append(f"\n发送「漫画 下载 {manga_name_or_id} ID:<ID>」选择")
                     yield event.plain_result("\n".join(lines))
                     return
 
