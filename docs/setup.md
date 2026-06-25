@@ -185,6 +185,7 @@ git clone https://github.com/FFFold/astrbot_suwayomi_server.git
 | `max_pages` | 单次阅读最大发送页数，默认 `30` |
 | `send_mode` | `image`（直接发图）或 `forward`（合并转发，仅 QQ） |
 | `default_source_id` | 默认搜索源 ID，`0` 搜索全部源 |
+| `chapter_cache_hours` | 章节缓存时间（小时），默认 `6`。`0` 不自动刷新，`-1` 每次都刷新 |
 
 **网络连通性**：AstrBot 所在机器必须能访问 Suwayomi-Server 地址。如果 AstrBot 和 Suwayomi 都在同一台机器上，用 `http://localhost:9330`。如果 AstrBot 在 Docker 中，需要用宿主机 IP 或 Docker 网络地址。
 
@@ -234,7 +235,10 @@ password: mypassword123
 # 5. 查看章节
 /漫画 章节 海贼王
 
-# 6. 阅读测试
+# 6. 强制刷新章节（可选）
+/漫画 章节 海贼王 --刷新
+
+# 7. 阅读测试
 /漫画 阅读 海贼王 1
 ```
 
@@ -274,6 +278,13 @@ AstrBot 所在机器需要能访问 Suwayomi 的图片 URL。如果 Suwayomi 在
 - 确认 Suwayomi 的书库中有该漫画（在 WebUI 中能看到）
 - 插件默认每 60 分钟检查一次，可通过 `/漫画 更新` 手动触发
 - 检查 AstrBot 日志中是否有错误信息
+
+### 章节数据不是最新的
+
+插件默认缓存章节数据 6 小时。如需强制刷新：
+
+- 使用 `/漫画 章节 <漫画名> --刷新` 从源重新拉取
+- 或在配置中将 `chapter_cache_hours` 设为 `-1`（每次都刷新）或 `0`（永不自动刷新）
 
 ### 连接超时或拒绝连接
 

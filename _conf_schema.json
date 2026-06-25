@@ -65,5 +65,12 @@
     "type": "int",
     "default": 0,
     "hint": "0 表示搜索所有已安装源"
+  },
+  "chapter_cache_hours": {
+    "description": "章节缓存时间（小时）",
+    "type": "int",
+    "default": 6,
+    "min": -1,
+    "hint": "超过此时间后自动从源刷新章节数据，0 表示永不自动刷新，-1 表示每次都强制刷新"
   }
 }

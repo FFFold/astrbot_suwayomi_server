@@ -58,11 +58,12 @@ main.py (SuwayomiPlugin)
 
 10. **Command format**: AstrBot command groups use space separation. User types `/漫画 搜索`, not `/漫画搜索`. All user-facing text must use `「漫画 搜索」` format (with space).
 
-11. **Chapter data is lazy-loaded**: `fetchSourceManga` (search) only returns metadata. Chapters must be fetched separately via `fetchChapters` mutation. Use `_get_or_fetch_chapters()` helper which tries DB first, then fetches from source.
+11. **Chapter data is lazy-loaded**: `fetchSourceManga` (search) only returns metadata. Chapters must be fetched separately via `fetchChapters` mutation. Use `_get_or_fetch_chapters()` helper which handles caching: reads from DB first, fetches from source if stale or empty. Cache duration is controlled by `chapter_cache_hours` config.
 
 ## Key Helper Methods
 
-- `_get_or_fetch_chapters(manga_id)` — Get chapters from DB, auto-fetch from source if empty. Used by all chapter-related commands.
+- `_get_or_fetch_chapters(manga_id, force=False)` — Get chapters from DB, auto-fetch from source if stale or empty. `force=True` bypasses cache. Used by all chapter-related commands.
+- `_get_chapter_timestamp(manga_id)` / `_set_chapter_timestamp(manga_id)` — Manage per-manga chapter fetch timestamps in KV storage.
 - `_fmt_chapter_label(ch, num_counts)` — Format chapter display: `#num name` or `#num name (ID:xxx)` for duplicates. Shared by chapter list and update notifications.
 - `_resolve_manga(event, name_or_id)` — Resolve manga by ID or fuzzy name. Returns `(Manga, None)` or `(None, error_msg)`.
 - `_download_images(urls)` — Parallel download with retry. Returns local file paths.
@@ -75,6 +76,7 @@ Key non-obvious config values (in `_conf_schema.json`):
 - `download_concurrency`: Parallel download count (default 6)
 - `download_retries`: Retry count per image with exponential backoff (default 3)
 - `send_mode`: `image` (direct) or `forward` (QQ merged forward, uses `Comp.Nodes` wrapper)
+- `chapter_cache_hours`: Hours before auto-refreshing chapters from source (default 6). `0` = never auto-refresh, `-1` = always refresh
 
 ## Adding New Commands
 

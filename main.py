@@ -183,6 +183,9 @@ class SuwayomiPlugin(Star):
   /漫画 阅读 <漫画名或ID> <章节号>      — 阅读章节
   /漫画 下载 <漫画名或ID> <章节号>      — 下载章节
 
+  添加 --刷新 强制从源更新章节数据：
+  /漫画 章节 <漫画名> --刷新
+
   重复编号章节可用 ID: 指定：
   /漫画 阅读 <漫画名> ID:123
 
@@ -407,25 +410,74 @@ class SuwayomiPlugin(Star):
 
     # ── 章节获取 ────────────────────────────────────────────────────
 
-    async def _get_or_fetch_chapters(self, manga_id: int) -> list:
-        """Get chapters from DB. If empty, fetch from source. Raises on network errors."""
-        chapters = await self.client.get_chapters(manga_id)
-        if not chapters:
-            chapters = await self.client.fetch_chapters(manga_id)
+    KV_CHAPTER_TS = "suwayomi_chapter_timestamps"
+
+    async def _get_chapter_timestamp(self, manga_id: int) -> float:
+        """Get the timestamp of last chapter fetch for a manga."""
+        data = await self.get_kv_data(self.KV_CHAPTER_TS, {})
+        return data.get(str(manga_id), 0)
+
+    async def _set_chapter_timestamp(self, manga_id: int):
+        """Record current time as last chapter fetch time for a manga."""
+        data = await self.get_kv_data(self.KV_CHAPTER_TS, {})
+        data[str(manga_id)] = time.time()
+        await self.put_kv_data(self.KV_CHAPTER_TS, data)
+
+    async def _get_or_fetch_chapters(self, manga_id: int, force: bool = False) -> list:
+        """Get chapters from DB. If empty or stale, fetch from source.
+
+        Args:
+            manga_id: The manga ID.
+            force: If True, always fetch from source regardless of cache.
+        """
+        cache_hours = self.config.get("chapter_cache_hours", 6)
+        if cache_hours < -1:
+            cache_hours = 0
+
+        # -1 means always refresh
+        if cache_hours == -1:
+            try:
+                chapters = await self.client.fetch_chapters(manga_id)
+                if chapters:
+                    await self._set_chapter_timestamp(manga_id)
+                return chapters
+            except SuwayomiError:
+                return await self.client.get_chapters(manga_id)
+
+        should_fetch = force
+
+        if not should_fetch and cache_hours > 0:
+            last_ts = await self._get_chapter_timestamp(manga_id)
+            if last_ts == 0 or (time.time() - last_ts) > cache_hours * 3600:
+                should_fetch = True
+
+        if not should_fetch:
+            chapters = await self.client.get_chapters(manga_id)
+            if chapters:
+                return chapters
+            should_fetch = True
+
+        chapters = await self.client.fetch_chapters(manga_id)
+        if chapters:
+            await self._set_chapter_timestamp(manga_id)
         return chapters
 
     # ── 章节列表 ──────────────────────────────────────────────────
 
     @manga_group.command("章节")
     async def list_chapters(self, event: AstrMessageEvent, manga_name_or_id: str):
-        '''查看漫画章节列表。用法: /漫画 章节 <漫画名或ID>'''
+        '''查看漫画章节列表。用法: /漫画 章节 <漫画名或ID> [--刷新]'''
         try:
+            force = "--刷新" in manga_name_or_id
+            if force:
+                manga_name_or_id = manga_name_or_id.replace("--刷新", "").strip()
+
             manga, err = await self._resolve_manga(event, manga_name_or_id)
             if err or manga is None:
                 yield event.plain_result(err or "未找到该漫画。")
                 return
 
-            chapters = await self._get_or_fetch_chapters(manga.id)
+            chapters = await self._get_or_fetch_chapters(manga.id, force=force)
             if not chapters:
                 yield event.plain_result(f"「{manga.title}」暂无章节。")
                 return

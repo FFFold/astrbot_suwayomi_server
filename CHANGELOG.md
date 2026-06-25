@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/).
 
+## [0.1.4] - 2026-06-25
+
+### Added
+
+- **章节缓存机制** — 新增 `chapter_cache_hours` 配置项，控制章节数据自动刷新间隔（默认 6 小时）
+- **强制刷新参数** — `/漫画 章节 <漫画名> --刷新` 可绕过缓存，从源重新拉取章节数据
+- **缓存时间戳** — 使用 KV 存储记录每个漫画的章节拉取时间，支持按漫画独立缓存
+
+### Changed
+
+- **章节获取逻辑** — `_get_or_fetch_chapters()` 现在根据缓存时间自动决定是否从源刷新，而非仅在 DB 为空时拉取
+
 ## [0.1.3] - 2026-06-25
 
 ### Added
