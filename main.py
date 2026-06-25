@@ -376,10 +376,19 @@ class SuwayomiPlugin(Star):
                 return None, "未找到该漫画。"
             if len(mangas) == 1:
                 return mangas[0], None
+
+            # Build source ID -> display name map
+            try:
+                sources = await self.client.get_sources()
+                src_map = {s.id: s.display_name for s in sources}
+            except Exception:
+                src_map = {}
+
             lines = ["找到多个结果，请使用 ID 指定:"]
             for m in mangas:
                 status = STATUS_EMOJI.get(m.status, "未知")
-                lines.append(f"  ID {m.id}: {m.title} [{status}]")
+                src_name = src_map.get(m.source_id, f"源{m.source_id}")
+                lines.append(f"  ID {m.id}: {m.title} [{status}] ({src_name})")
             return None, "\n".join(lines)
         except Exception as e:
             logger.error(f"[{PLUGIN_NAME}] resolve_manga error: {e}")
@@ -636,9 +645,7 @@ class SuwayomiPlugin(Star):
                         ch_info = []
                         for ch in new_chapters:
                             num = _fmt_chapter_num(ch.chapter_number)
-                            label = f"#{num}"
-                            if ch.name and ch.name != f"第{num}话" and ch.name != f"Chapter {num}":
-                                label += f" {ch.name}"
+                            label = f"#{num} {ch.name}" if ch.name else f"#{num}"
                             ch_info.append(label)
                         updated_mangas.append((title, ch_info, new_chapters[-1], subscribers))
 
