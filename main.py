@@ -435,13 +435,25 @@ class SuwayomiPlugin(Star):
             for ch in chapters:
                 num_count[ch.chapter_number] = num_count.get(ch.chapter_number, 0) + 1
 
-            lines = [f"📖「{manga.title}」章节列表（共 {len(chapters)} 话）:"]
+            header = f"📖「{manga.title}」章节列表（共 {len(chapters)} 话）:"
+            chunks: list[list[str]] = [[]]
             for ch in chapters:
                 read_mark = "✅" if ch.is_read else "⬜"
                 dl_mark = " 📥" if ch.is_downloaded else ""
-                lines.append(f"  {read_mark} {self._fmt_chapter_label(ch, num_count)}{dl_mark}")
+                line = f"  {read_mark} {self._fmt_chapter_label(ch, num_count)}{dl_mark}"
+                # ~1500 chars per message to stay within platform limits
+                current_len = sum(len(l) for l in chunks[-1]) + len(header)
+                if current_len + len(line) > 1500 and chunks[-1]:
+                    chunks.append([])
+                chunks[-1].append(line)
 
-            yield event.plain_result("\n".join(lines))
+            for i, chunk in enumerate(chunks):
+                prefix = header if i == 0 else f"📖「{manga.title}」章节续 ({i + 1}/{len(chunks)}):"
+                msg = prefix + "\n" + "\n".join(chunk)
+                if i == 0:
+                    yield event.plain_result(msg)
+                else:
+                    await event.send(event.plain_result(msg))
 
         except SuwayomiError as e:
             yield event.plain_result(f"获取章节失败: {e}")
