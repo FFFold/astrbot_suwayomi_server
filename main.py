@@ -103,7 +103,7 @@ class SuwayomiPlugin(Star):
             while True:
                 await asyncio.sleep(interval)
                 try:
-                    await self._check_updates()
+                    await self._check_updates(force=True)
                 except Exception as e:
                     logger.error(f"[{PLUGIN_NAME}] 后台更新检查失败: {e}")
         except asyncio.CancelledError:
