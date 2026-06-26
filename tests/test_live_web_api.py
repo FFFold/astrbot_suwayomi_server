@@ -238,9 +238,9 @@ async def test_delete_all_subscribers(sub_mgr):
 
 
 @pytest.mark.asyncio
-async def test_delete_missing_manga():
+async def test_delete_missing_manga(sub_mgr):
     """api_subscription_delete with missing manga_id returns error."""
-    result = await api_subscription_delete(FakePlugin(), {})
+    result = await api_subscription_delete(sub_mgr, {})
     assert isinstance(result, tuple)
     assert result[0]["success"] is False
     assert result[1] == 400
