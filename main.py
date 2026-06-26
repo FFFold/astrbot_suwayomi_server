@@ -587,7 +587,15 @@ class SuwayomiPlugin(Star):
             for ch in chapters:
                 num_count[ch.chapter_number] = num_count.get(ch.chapter_number, 0) + 1
 
-            header = f"📖「{manga.title}」章节列表（共 {len(chapters)} 话）:"
+            # Resolve source name
+            try:
+                sources = await self.client.get_sources()
+                src_name = next((s.display_name for s in sources if str(s.id) == str(manga.source_id)), None)
+            except Exception:
+                src_name = None
+            src_tag = f" [{src_name}]" if src_name else ""
+
+            header = f"📖「{manga.title}」{src_tag}章节列表（共 {len(chapters)} 话）:"
             chunks: list[list[str]] = [[]]
             for ch in chapters:
                 read_mark = "✅" if ch.is_read else "⬜"
@@ -600,7 +608,7 @@ class SuwayomiPlugin(Star):
                 chunks[-1].append(line)
 
             for i, chunk in enumerate(chunks):
-                prefix = header if i == 0 else f"📖「{manga.title}」章节续 ({i + 1}/{len(chunks)}):"
+                prefix = header if i == 0 else f"📖「{manga.title}」{src_tag}章节续 ({i + 1}/{len(chunks)}):"
                 msg = prefix + "\n" + "\n".join(chunk)
                 if i == 0:
                     yield event.plain_result(msg)
