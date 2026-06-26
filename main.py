@@ -332,9 +332,10 @@ class SuwayomiPlugin(Star):
             try:
                 manga_id = int(manga_id_or_name)
             except ValueError:
+                norm_input = _normalize_zh(manga_id_or_name)
                 subs = await self.sub_mgr.get_subscriptions(umo)
                 for s in subs:
-                    if _normalize_zh(manga_id_or_name) in _normalize_zh(s["title"]):
+                    if norm_input in _normalize_zh(s["title"]):
                         manga_id = s["manga_id"]
                         manga_title = s["title"]
                         break
@@ -378,9 +379,10 @@ class SuwayomiPlugin(Star):
         except (ValueError, SuwayomiError):
             pass
 
+        norm_input = _normalize_zh(name_or_id)
         subs = await self.sub_mgr.get_subscriptions(event.unified_msg_origin)
         for s in subs:
-            if _normalize_zh(name_or_id) in _normalize_zh(s["title"]):
+            if norm_input in _normalize_zh(s["title"]):
                 try:
                     manga = await self.client.get_manga(s["manga_id"])
                     return manga, None
