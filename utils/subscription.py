@@ -66,6 +66,16 @@ class SubscriptionManager:
             data[key]["latest_chapter_id"] = chapter_id
             await self._save(data)
 
+    async def update_title(self, manga_id: int, new_title: str) -> bool:
+        """Update stored title if changed. Returns True if updated."""
+        data = await self._load()
+        key = str(manga_id)
+        if key in data and data[key].get("title") != new_title:
+            data[key]["title"] = new_title
+            await self._save(data)
+            return True
+        return False
+
     async def set_auto_push(self, manga_id: int, umo: str, enabled: bool):
         """Enable or disable auto-push for a umo on a manga."""
         data = await self._load()

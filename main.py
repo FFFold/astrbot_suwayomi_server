@@ -1011,6 +1011,10 @@ class SuwayomiPlugin(Star):
 
             updated_mangas: list[tuple[int, str, list[str], list[Chapter], list[str]]] = []
 
+            cache_hours = self.config.get("chapter_cache_hours", 6)
+            if cache_hours < -1:
+                cache_hours = 0
+
             for manga_id_str, info in all_subs.items():
                 manga_id = int(manga_id_str)
                 title = info.get("title", f"ID:{manga_id}")
@@ -1021,6 +1025,18 @@ class SuwayomiPlugin(Star):
                     continue
 
                 try:
+                    # Sync title when chapter cache is stale (reuses existing cache mechanism)
+                    if cache_hours != 0:
+                        last_ts = await self._get_chapter_timestamp(manga_id)
+                        if last_ts == 0 or cache_hours == -1 or (time.time() - last_ts) > cache_hours * 3600:
+                            try:
+                                manga = await self.client.get_manga(manga_id)
+                                if await self.sub_mgr.update_title(manga_id, manga.title):
+                                    logger.info(f"[{PLUGIN_NAME}] 漫画标题已更新: 「{title}」->「{manga.title}」(ID:{manga_id})")
+                                    title = manga.title
+                            except Exception:
+                                pass
+
                     chapters = await self._get_or_fetch_chapters(manga_id)
                     if not chapters:
                         continue
