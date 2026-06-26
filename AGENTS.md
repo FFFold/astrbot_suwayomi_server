@@ -77,7 +77,7 @@ main.py (SuwayomiPlugin)
 - `_get_or_fetch_chapters(manga_id, force=False)` — Get chapters from DB, auto-fetch from source if stale or empty. `force=True` bypasses cache. Used by all chapter-related commands.
 - `_get_chapter_timestamp(manga_id)` / `_set_chapter_timestamp(manga_id)` — Manage per-manga chapter fetch timestamps in KV storage.
 - `_fmt_chapter_label(ch, num_counts)` — Format chapter display: `#num name` or `#num name (ID:xxx)` for duplicates. Shared by chapter list and update notifications.
-- `_resolve_manga(event, name_or_id)` — Resolve manga by ID or fuzzy name. Returns `(Manga, None)` or `(None, error_msg)`.
+- `_resolve_manga(event, name_or_id, cmd)` — Resolve manga by ID or fuzzy name. Returns `(Manga, None)` or `(None, error_msg)`. `cmd` is used in disambiguation hints (e.g., "章节", "阅读", "下载").
 - `_resolve_chapter(chapters, chapter_num, manga_name_or_id, cmd)` — Resolve chapter by ID or number string. Returns `(Chapter, None)` or `(None, error_msg)`. Shared by read and download.
 - `_fetch_pages_local(chapter_id, max_pages)` — Fetch page URLs and download images to temp dir. Returns `(total_pages, page_urls, local_paths)`. Shared by read and download.
 - `_download_images(urls)` — Parallel download with retry. Returns local file paths.
@@ -109,7 +109,7 @@ Key non-obvious config values (in `_conf_schema.json`):
 
 - `metadata.yaml`: AstrBot plugin metadata (name, version, platforms)
 - `_conf_schema.json`: AstrBot WebUI config form schema
-- `requirements.txt`: Runtime deps (currently `aiohttp>=3.9.0` and `img2pdf>=0.5.0`)
+- `requirements.txt`: Runtime deps (currently `aiohttp>=3.9.0`, `img2pdf>=0.5.0`, and `opencc-python-reimplemented>=0.1.7`)
 - `pyproject.toml`: Dev deps (pytest, pytest-asyncio), gitignored
 - Tests in `tests/` - unit tests are synchronous or use `@pytest.mark.asyncio`
 - `test_live_api.py`: Integration tests, skipped by default, need live server

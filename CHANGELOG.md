@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/).
 
+## [0.2.2] - 2026-06-26
+
+### Fixed
+
+- **章节排序** — 章节列表和更新通知改为按源站顺序（`source_order`）排序，附录/番外等按源站意图排列
+- **简繁匹配** — 漫画名匹配（章节/阅读/下载/取消订阅）对简繁中文不敏感，使用 OpenCC 归一化后比较
+- **多结果引导** — 匹配到多个漫画时提示具体命令用法（如 `/漫画 章节 151`）
+
+### Changed
+
+- 新增 `opencc-python-reimplemented` 运行时依赖
+
 ## [0.2.1] - 2026-06-25
 
 ### Fixed
