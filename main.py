@@ -8,6 +8,7 @@ import time
 from pathlib import Path
 
 import aiohttp
+import opencc
 
 import astrbot.api.message_components as Comp
 from astrbot.api import AstrBotConfig, logger
@@ -23,6 +24,13 @@ PLUGIN_NAME = "astrbot_suwayomi_server"
 
 # Search cache TTL in seconds
 _CACHE_TTL = 600  # 10 minutes
+
+_t2s = opencc.OpenCC("t2s")
+
+
+def _normalize_zh(text: str) -> str:
+    """Normalize Chinese text to simplified for comparison."""
+    return _t2s.convert(text)
 
 
 def _fmt_chapter_num(num: float) -> int | float | str:
@@ -326,7 +334,7 @@ class SuwayomiPlugin(Star):
             except ValueError:
                 subs = await self.sub_mgr.get_subscriptions(umo)
                 for s in subs:
-                    if manga_id_or_name in s["title"]:
+                    if _normalize_zh(manga_id_or_name) in _normalize_zh(s["title"]):
                         manga_id = s["manga_id"]
                         manga_title = s["title"]
                         break
@@ -372,7 +380,7 @@ class SuwayomiPlugin(Star):
 
         subs = await self.sub_mgr.get_subscriptions(event.unified_msg_origin)
         for s in subs:
-            if name_or_id in s["title"]:
+            if _normalize_zh(name_or_id) in _normalize_zh(s["title"]):
                 try:
                     manga = await self.client.get_manga(s["manga_id"])
                     return manga, None
