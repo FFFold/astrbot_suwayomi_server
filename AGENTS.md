@@ -12,6 +12,7 @@
 - [Suwayomi API 参考](docs/dev/suwayomi-api.md) — GraphQL API 文档
 - [配置教程](docs/setup.md) — Suwayomi-Server 部署和插件配置
 - [变更日志](CHANGELOG.md) — 版本更新记录
+- [文档更新清单](docs/dev/doc-update-checklist.md) — 各类变更需同步更新的文件列表
 
 ## Commands
 
@@ -114,3 +115,7 @@ Key non-obvious config values (in `_conf_schema.json`):
 - Tests in `tests/` - unit tests are synchronous or use `@pytest.mark.asyncio`
 - `test_live_api.py`: Integration tests, skipped by default, need live server
 - Version is in `metadata.yaml`, not `pyproject.toml`
+
+## Documentation Update Checklist
+
+各类变更（版本发布、新命令、新配置、架构变更等）需同步更新的文件清单见 [docs/dev/doc-update-checklist.md](docs/dev/doc-update-checklist.md)。

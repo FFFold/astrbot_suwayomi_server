@@ -246,6 +246,8 @@ SUWAYOMI_URL=http://localhost:9330 uv run pytest tests/test_live_api.py -v -s
 | 架构变更 | `docs/dev/development.md`, `AGENTS.md` |
 | 版本发布 | `metadata.yaml`, `CHANGELOG.md` |
 
+> 完整的文件更新清单见 [docs/dev/doc-update-checklist.md](docs/dev/doc-update-checklist.md)。
+
 ## 常见问题
 
 ### Q: 如何调试 GraphQL 查询？
@@ -280,6 +282,7 @@ SUWAYOMI_URL=http://localhost:9330 uv run pytest tests/test_live_api.py -v -s
 - [Suwayomi API 参考](docs/dev/suwayomi-api.md) — GraphQL API 文档
 - [配置教程](docs/setup.md) — Suwayomi-Server 部署和插件配置
 - [变更日志](CHANGELOG.md) — 版本更新记录
+- [文档更新清单](docs/dev/doc-update-checklist.md) — 各类变更需同步更新的文件列表
 
 ## 获取帮助
 
