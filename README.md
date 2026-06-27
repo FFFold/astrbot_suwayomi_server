@@ -1,7 +1,7 @@
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="logo.png">
-    <img src="logo.png" alt="Suwayomi 漫画助手" width="128" height="128">
+    <img src="https://raw.githubusercontent.com/FFFold/astrbot_plugin_suwayomi_server/main/logo.png" alt="Suwayomi 漫画助手" width="128" height="128">
   </picture>
   <br>
   <h1 align="center"><b>📖 Suwayomi 漫画助手</b></h1>
