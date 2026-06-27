@@ -160,6 +160,15 @@ async def test_delete_missing_manga_id():
 
 
 @pytest.mark.asyncio
+async def test_delete_invalid_manga_id():
+    result = await api_subscription_delete(MagicMock(), {"manga_id": "abc"})
+    assert isinstance(result, tuple)
+    assert result[0]["success"] is False
+    assert "整数" in result[0]["message"]
+    assert result[1] == 400
+
+
+@pytest.mark.asyncio
 async def test_delete_nonexistent_manga(sub_mgr):
     """Deleting a nonexistent manga should not raise."""
     result = await api_subscription_delete(sub_mgr, {"manga_id": 999})
@@ -294,6 +303,41 @@ async def test_config_post_rejects_unknown_keys():
     assert result["success"] is True
     assert "evil_key" not in cfg
     assert "_internal" not in cfg
+
+
+@pytest.mark.asyncio
+async def test_config_post_validates_numeric_fields():
+    """Numeric fields should be coerced to int with min bounds."""
+    cfg = FakeConfig({"server_url": "http://old:9330", "check_interval": 60})
+
+    result = await api_config_post(cfg, {
+        "server_url": "http://new:9330",
+        "check_interval": "0",  # below min of 1
+    }, AsyncMock())
+    assert result["success"] is True
+    assert cfg["check_interval"] == 1  # clamped to minimum
+
+
+@pytest.mark.asyncio
+async def test_config_post_validates_numeric_string():
+    """Numeric string values should be coerced to int."""
+    cfg = FakeConfig({"server_url": "http://old:9330"})
+
+    result = await api_config_post(cfg, {
+        "server_url": "http://new:9330",
+        "max_pages": "50",
+    }, AsyncMock())
+    assert result["success"] is True
+    assert cfg["max_pages"] == 50
+
+
+def test_config_get_only_returns_allowed_keys():
+    """api_config_get should only return whitelisted keys."""
+    cfg = {"server_url": "http://localhost:9330", "password": "pw", "internal_key": "secret"}
+    result = api_config_get(cfg)
+    assert "server_url" in result
+    assert "password" in result
+    assert "internal_key" not in result
 
 
 # ── api_sources ─────────────────────────────────────────

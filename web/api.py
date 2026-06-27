@@ -16,6 +16,24 @@ from astrbot.api import logger
 
 PLUGIN_NAME = "astrbot_plugin_suwayomi_server"
 
+# Whitelist of known config keys — shared by api_config_get and api_config_post
+ALLOWED_CONFIG_KEYS = {
+    "server_url", "auth_mode", "username", "password",
+    "check_interval", "max_pages", "send_mode", "image_fetch_mode",
+    "download_concurrency", "download_retries", "default_source_id",
+    "chapter_cache_hours", "download_format", "temp_dir", "auto_push_mode",
+}
+
+# Numeric config keys with their minimum allowed values
+NUMERIC_CONFIG_KEYS = {
+    "check_interval": 1,
+    "max_pages": 1,
+    "download_concurrency": 1,
+    "download_retries": 0,
+    "default_source_id": 0,
+    "chapter_cache_hours": -1,
+}
+
 
 async def api_status(
     client: Any,
@@ -111,10 +129,15 @@ async def api_subscription_delete(
         return {"success": False, "message": "缺少 manga_id"}, 400
 
     try:
+        manga_id = int(manga_id)
+    except (ValueError, TypeError):
+        return {"success": False, "message": "manga_id 必须是有效的整数"}, 400
+
+    try:
         if umo:
-            await sub_mgr.unsubscribe(int(manga_id), umo)
+            await sub_mgr.unsubscribe(manga_id, umo)
         else:
-            await sub_mgr.delete_manga(int(manga_id))
+            await sub_mgr.delete_manga(manga_id)
         return {"success": True}
     except Exception as e:
         logger.error(f"[{PLUGIN_NAME}] api_subscription_delete error: {e}")
@@ -134,7 +157,12 @@ async def api_subscription_push(
         return {"success": False, "message": "缺少参数"}, 400
 
     try:
-        await sub_mgr.set_auto_push(int(manga_id), umo, bool(enabled))
+        manga_id = int(manga_id)
+    except (ValueError, TypeError):
+        return {"success": False, "message": "manga_id 必须是有效的整数"}, 400
+
+    try:
+        await sub_mgr.set_auto_push(manga_id, umo, bool(enabled))
         return {"success": True}
     except Exception as e:
         logger.error(f"[{PLUGIN_NAME}] api_subscription_push error: {e}")
@@ -142,8 +170,8 @@ async def api_subscription_push(
 
 
 def api_config_get(config: Any) -> dict:
-    """GET /config — 读取当前插件配置，掩码敏感字段"""
-    cfg = dict(config)
+    """GET /config — 读取当前插件配置，仅返回白名单字段，掩码敏感字段"""
+    cfg = {k: config.get(k) for k in ALLOWED_CONFIG_KEYS if k in config}
     if cfg.get("password"):
         cfg["password"] = "***"
     return cfg
@@ -163,12 +191,7 @@ async def api_config_post(
         return {"success": False, "message": "服务器地址不能为空"}, 400
 
     # Whitelist of known config keys to prevent overwriting internal attributes
-    allowed_keys = {
-        "server_url", "auth_mode", "username", "password",
-        "check_interval", "max_pages", "send_mode", "image_fetch_mode",
-        "download_concurrency", "download_retries", "default_source_id",
-        "chapter_cache_hours", "download_format", "temp_dir", "auto_push_mode",
-    }
+    allowed_keys = ALLOWED_CONFIG_KEYS
 
     for key, value in data.items():
         if key not in allowed_keys:
@@ -176,6 +199,14 @@ async def api_config_post(
         # Skip masked password from GET response
         if key == "password" and value == "***":
             continue
+        # Validate and coerce numeric fields
+        if key in NUMERIC_CONFIG_KEYS:
+            try:
+                value = int(value)
+                if value < NUMERIC_CONFIG_KEYS[key]:
+                    value = NUMERIC_CONFIG_KEYS[key]
+            except (ValueError, TypeError):
+                continue
         config[key] = value
 
     try:

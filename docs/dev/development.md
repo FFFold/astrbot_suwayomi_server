@@ -117,7 +117,7 @@ astrbot_suwayomi_server/
 #### `web/api.py` — WebUI API handlers
 
 - 独立 async 函数，通过参数注入依赖（`client`、`sub_mgr`、`config`），便于单元测试
-- 7 个 handler：`api_status`、`api_subscriptions`、`api_subscription_delete`、`api_subscription_push`、`api_config_get`、`api_config_post`、`api_sources`、`api_update`
+- 8 个 handler：`api_status`、`api_subscriptions`、`api_subscription_delete`、`api_subscription_push`、`api_config_get`、`api_config_post`、`api_sources`、`api_update`
 - 成功返回 `dict`（HTTP 200），错误返回 `(dict, int)` 元组（HTTP 4xx/5xx）
 - `main.py` 中通过 `_json_response()` 辅助方法统一处理返回格式
 
