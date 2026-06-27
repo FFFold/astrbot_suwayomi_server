@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/).
 
-## [Unreleased]
+## [0.4.1] - 2026-06-27
 
 ### Added
 
@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 ### Fixed
 
 - **`default_source_id` 类型比较** — 修复 `Source.id`（str）与配置值（int）比较永远不匹配的 bug，影响 `search_manga` 和新增的 `_search_best_match`
+- **我的订阅格式统一** — 改为 `标题 - 源名 - ID: xxx` 格式，源名获取失败时降级显示
+- **章节列表标题格式** — 统一为 `标题 - 源名 章节列表`，续行消息同步修复
+- **批量订阅源名查找** — 修复 `src.id`（str）与 `manga.source_id`（int）类型不匹配导致源名始终为空的问题
 
 ## [0.4.0] - 2026-06-27
 
