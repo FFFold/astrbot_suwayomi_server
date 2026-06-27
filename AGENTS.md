@@ -17,8 +17,8 @@
 ## Commands
 
 ```bash
-# Unit tests (84 tests, no network needed)
-uv run pytest tests/test_pack.py tests/test_models.py tests/test_client.py tests/test_subscription.py tests/test_web_api.py -v
+# Unit tests (95 tests, no network needed)
+uv run pytest tests/test_pack.py tests/test_models.py tests/test_client.py tests/test_subscription.py tests/test_web_api.py tests/test_batch_subscribe.py -v
 
 # Integration tests (requires live Suwayomi-Server)
 uv run pytest tests/test_live_api.py tests/test_live_web_api.py -v -s
@@ -43,7 +43,7 @@ main.py (SuwayomiPlugin)
   └── pages/dashboard/ (WebUI: 仪表盘 + 订阅管理 + 配置)
 ```
 
-- `main.py`: Plugin entry, all 13 commands under `@filter.command_group("漫画")`, background update loop, WebUI API registration
+- `main.py`: Plugin entry, all 14 commands under `@filter.command_group("漫画")`, background update loop, WebUI API registration
 - `suwayomi/client.py`: All Suwayomi interaction via `POST /api/graphql`; supports none/basic/jwt auth
 - `suwayomi/models.py`: Pure dataclasses with `from_dict()` factory methods
 - `utils/pack.py`: Pack images into ZIP, CBZ, or PDF files; `parse_download_args()` for command arg parsing
@@ -94,6 +94,7 @@ main.py (SuwayomiPlugin)
 - `_download_one(session, url, dest)` — Single image download with exponential backoff retry.
 - `_push_chapter_images(umo, title, chapter)` — Push chapter as inline images (reuses read logic). Used by auto-push.
 - `_push_chapter_file(umo, title, chapter)` — Push chapter as packaged file (reuses download logic). Used by auto-push.
+- `_search_best_match(name, source_filter)` — Search manga name across sources, return first match. Used by batch subscribe.
 
 ## Config Options
 

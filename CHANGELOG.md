@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ### Added
 
+- **批量订阅** — 新增 `「漫画 批量订阅」` 命令，支持一次订阅多部漫画，逗号/分号分隔名称，自动搜索最佳匹配，逐个反馈进度，汇总报告（新增/已存在/失败），支持指定源，最多 20 部
+- **批量订阅单元测试** — 新增 `tests/test_batch_subscribe.py`（11 个测试），覆盖参数解析：中英文逗号、分号、混合分隔符、源名过滤、空白处理
+
+### Fixed
+
+- **`default_source_id` 类型比较** — 修复 `Source.id`（str）与配置值（int）比较永远不匹配的 bug，影响 `search_manga` 和新增的 `_search_best_match`
+
 - **管理员 WebUI** — 新增 AstrBot Plugin Pages 管理界面，包含 3 个 Tab：
   - **仪表盘** — Suwayomi 连接状态、源数量、书库漫画数、订阅统计、订阅总览表、手动检查更新
   - **订阅管理** — 跨所有用户的订阅列表，支持按漫画 ID、漫画名、源、订阅者（UMO）、推送状态五个维度同时筛选，删除单条订阅、自定义确认弹窗
@@ -21,7 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 ### Changed
 
 - **项目结构重构** — API handler 从 `main.py` 提取到 `web/api.py`，`main.py` 仅负责注册和委托
-- **测试扩充** — 单元测试从 51 个增加到 77 个，集成测试新增 19 个 WebUI API 测试
+- **测试扩充** — 单元测试从 51 个增加到 95 个，集成测试新增 19 个 WebUI API 测试
 
 ## [0.3.2] - 2026-06-26
 
