@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 - **删除按钮修复** — 订阅管理的删除按钮现在正确删除单条（漫画 + UMO）订阅关系，而非整个漫画的所有订阅者
 - **sandbox iframe 兼容** — 用自定义确认弹窗替代原生 `confirm()`，解决 AstrBot sandbox iframe 无 `allow-modals` 导致确认框被静默跳过的问题
 - **PLUGIN_NAME 路由修复** — `PLUGIN_NAME` 常量必须与 `metadata.yaml` 中的 `name` 一致，否则 Bridge SDK 构建的 API URL 无法匹配后端路由
+- **配置保存密码丢失** — 修复配置保存时 GET 返回的掩码密码 `"***"` 覆盖真实密码的问题；增加配置键白名单防止写入非法字段
 
 ### Changed
 
