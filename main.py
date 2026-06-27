@@ -411,6 +411,7 @@ class SuwayomiPlugin(Star):
                 return
 
             sources = await self.client.get_sources()
+            src_map = {str(s.id): s.display_name for s in sources}
             source_filter = None
             search_str = args_str
 
@@ -449,11 +450,7 @@ class SuwayomiPlugin(Star):
 
                 if manga.id in existing_ids:
                     status_text = STATUS_EMOJI.get(manga.status, "未知")
-                    source_name = ""
-                    for src in sources:
-                        if src.id == manga.source_id:
-                            source_name = src.display_name
-                            break
+                    source_name = src_map.get(str(manga.source_id), "")
                     results.append((name, "exists", f"{manga.title} - {status_text} - {source_name}"))
                     continue
 
@@ -468,11 +465,7 @@ class SuwayomiPlugin(Star):
                     logger.warning(f"[{PLUGIN_NAME}] 批量订阅拉取「{manga.title}」章节失败: {e}")
 
                 status_text = STATUS_EMOJI.get(manga.status, "未知")
-                source_name = ""
-                for src in sources:
-                    if src.id == manga.source_id:
-                        source_name = src.display_name
-                        break
+                source_name = src_map.get(str(manga.source_id), "")
                 results.append((name, "ok", f"{manga.title} - {status_text} - {source_name}"))
 
             ok_count = sum(1 for _, s, _ in results if s == "ok")
