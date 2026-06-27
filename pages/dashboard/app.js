@@ -45,23 +45,41 @@ function initHandlers() {
     btnUpdate.textContent = '检查更新';
   });
 
-  // Subscription filters
-  document.getElementById('filter-umo').addEventListener('input', applySubsFilter);
-  document.getElementById('filter-title').addEventListener('input', applySubsFilter);
+  // Subscription filters — all fields trigger the same filter function
+  ['filter-id', 'filter-title', 'filter-source', 'filter-umo'].forEach(id => {
+    document.getElementById(id).addEventListener('input', applySubsFilter);
+  });
+  document.getElementById('filter-push').addEventListener('change', applySubsFilter);
+
+  // Clear filters button
+  document.getElementById('btn-clear-filters').addEventListener('click', () => {
+    ['filter-id', 'filter-title', 'filter-source', 'filter-umo'].forEach(id => {
+      document.getElementById(id).value = '';
+    });
+    document.getElementById('filter-push').value = '';
+    applySubsFilter();
+  });
 
   // Subscription table delete buttons (event delegation)
   document.getElementById('subs-tbody').addEventListener('click', async (e) => {
     const btn = e.target.closest('[data-action="delete"]');
     if (!btn) return;
+    e.preventDefault();
     const mangaId = Number(btn.dataset.mangaId);
+    const umo = btn.dataset.umo;
     const title = btn.dataset.title;
-    if (!confirm(`确认删除「${title}」的所有订阅？`)) return;
+    const confirmed = await showConfirm(`确认删除此订阅？\n漫画: ${title}\n订阅者: ${formatUmo(umo)}`);
+    if (!confirmed) return;
+    btn.disabled = true;
+    btn.textContent = '删除中...';
     try {
-      await bridge.apiPost('subscription/delete', { manga_id: mangaId });
+      await bridge.apiPost('subscription/delete', { manga_id: mangaId, umo });
       showToast('已删除', 'success');
       await loadSubscriptions();
     } catch (err) {
-      showToast('删除失败', 'error');
+      showToast('删除失败: ' + err.message, 'error');
+      btn.disabled = false;
+      btn.textContent = '删除';
     }
   });
 
@@ -153,59 +171,93 @@ async function loadSubscriptions() {
     const res = await bridge.apiGet('subscriptions');
     allSubscriptions = res.subscriptions || [];
     allSources = (await bridge.apiGet('sources')).sources || [];
-    renderSubsTable(allSubscriptions);
+    applySubsFilter();
   } catch (e) {
     showToast('加载订阅失败', 'error');
   }
 }
 
-function applySubsFilter() {
-  const umoFilter = document.getElementById('filter-umo').value.toLowerCase();
-  const titleFilter = document.getElementById('filter-title').value.toLowerCase();
-
-  let filtered = allSubscriptions;
-  if (umoFilter) {
-    filtered = filtered.filter(s =>
-      s.subscribers.some(u => u.toLowerCase().includes(umoFilter))
-    );
+// Flatten subscriptions: one row per (manga, UMO) pair
+function flattenSubscriptions(subs) {
+  const rows = [];
+  for (const s of subs) {
+    for (const umo of s.subscribers) {
+      const ap = s.auto_push[umo];
+      const pushEnabled = !!(ap && ap.enabled);
+      rows.push({
+        manga_id: s.manga_id,
+        title: s.title,
+        source_name: s.source_name,
+        umo,
+        push_enabled: pushEnabled,
+      });
+    }
   }
-  if (titleFilter) {
-    filtered = filtered.filter(s => s.title.toLowerCase().includes(titleFilter));
-  }
-  renderSubsTable(filtered);
+  return rows;
 }
 
-function renderSubsTable(subs) {
+function applySubsFilter() {
+  const idFilter = document.getElementById('filter-id').value.trim();
+  const titleFilter = document.getElementById('filter-title').value.toLowerCase();
+  const sourceFilter = document.getElementById('filter-source').value.toLowerCase();
+  const umoFilter = document.getElementById('filter-umo').value.toLowerCase();
+  const pushFilter = document.getElementById('filter-push').value;
+
+  const rows = flattenSubscriptions(allSubscriptions);
+  let filtered = rows;
+
+  if (idFilter) {
+    filtered = filtered.filter(r => String(r.manga_id) === idFilter);
+  }
+  if (titleFilter) {
+    filtered = filtered.filter(r => r.title.toLowerCase().includes(titleFilter));
+  }
+  if (sourceFilter) {
+    filtered = filtered.filter(r => r.source_name.toLowerCase().includes(sourceFilter));
+  }
+  if (umoFilter) {
+    filtered = filtered.filter(r => r.umo.toLowerCase().includes(umoFilter));
+  }
+  if (pushFilter === 'on') {
+    filtered = filtered.filter(r => r.push_enabled);
+  } else if (pushFilter === 'off') {
+    filtered = filtered.filter(r => !r.push_enabled);
+  }
+
+  renderSubsTable(filtered);
+
+  const countEl = document.getElementById('filter-count');
+  const hasFilter = idFilter || titleFilter || sourceFilter || umoFilter || pushFilter;
+  if (hasFilter) {
+    countEl.textContent = `${filtered.length} / ${rows.length}`;
+  } else {
+    countEl.textContent = '';
+  }
+}
+
+function renderSubsTable(rows) {
   const tbody = document.getElementById('subs-tbody');
   const emptyEl = document.getElementById('subs-empty');
 
-  if (!subs.length) {
+  if (!rows.length) {
     tbody.innerHTML = '';
     emptyEl.classList.remove('hidden');
     return;
   }
   emptyEl.classList.add('hidden');
 
-  tbody.innerHTML = subs.map(s => {
-    const subTags = s.subscribers.map(u => {
-      const ap = s.auto_push[u];
-      const enabled = ap && ap.enabled;
-      return `<span class="sub-tag" title="${esc(u)}">${esc(formatUmo(u))} <span class="${enabled ? 'push-on' : 'push-off'}">${enabled ? 'ON' : 'OFF'}</span></span>`;
-    }).join(' ');
-
-    return `
-      <tr>
-        <td>${s.manga_id}</td>
-        <td>${esc(s.title)}</td>
-        <td>${esc(s.source_name)}</td>
-        <td>${subTags}</td>
-        <td>${s.push_enabled_count}/${s.subscriber_count}</td>
-        <td>
-          <button class="btn btn-danger btn-sm" data-action="delete" data-manga-id="${s.manga_id}" data-title="${esc(s.title)}">删除全部</button>
-        </td>
-      </tr>
-    `;
-  }).join('');
+  tbody.innerHTML = rows.map(r => `
+    <tr>
+      <td>${r.manga_id}</td>
+      <td>${esc(r.title)}</td>
+      <td>${esc(r.source_name)}</td>
+      <td><span class="sub-tag" title="${esc(r.umo)}">${esc(formatUmo(r.umo))}</span></td>
+      <td><span class="${r.push_enabled ? 'push-on' : 'push-off'}">${r.push_enabled ? 'ON' : 'OFF'}</span></td>
+      <td>
+        <button class="btn btn-danger btn-sm" data-action="delete" data-manga-id="${r.manga_id}" data-umo="${escAttr(r.umo)}" data-title="${escAttr(r.title)}">删除</button>
+      </td>
+    </tr>
+  `).join('');
 }
 
 // ── Settings ───────────────────────────────────────────
@@ -233,6 +285,17 @@ function esc(str) {
     .replace(/'/g, '&#39;');
 }
 
+// Escape for use inside HTML attribute values (double + single quotes)
+function escAttr(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
 function formatUmo(umo) {
   return umo;
 }
@@ -242,4 +305,27 @@ function showToast(msg, type) {
   toast.textContent = msg;
   toast.className = 'toast ' + type;
   setTimeout(() => { toast.className = 'toast hidden'; }, 3000);
+}
+
+function showConfirm(message) {
+  return new Promise(resolve => {
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.innerHTML = `
+      <div class="modal-box">
+        <p class="modal-msg">${esc(message)}</p>
+        <div class="modal-actions">
+          <button class="btn" data-confirm="false">取消</button>
+          <button class="btn btn-danger" data-confirm="true">确认</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    overlay.addEventListener('click', (e) => {
+      const val = e.target.dataset.confirm;
+      if (val === 'true') { overlay.remove(); resolve(true); }
+      else if (val === 'false') { overlay.remove(); resolve(false); }
+      else if (e.target === overlay) { overlay.remove(); resolve(false); }
+    });
+  });
 }

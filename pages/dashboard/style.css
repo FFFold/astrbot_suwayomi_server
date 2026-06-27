@@ -208,12 +208,53 @@ body {
 }
 
 .filters {
-  display: flex;
-  gap: 12px;
   margin-bottom: 16px;
 }
 
-.filters .input { flex: 1; }
+.filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-end;
+}
+
+.filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 100px;
+}
+
+.filter-field label {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.filter-field .input {
+  width: 100%;
+  min-width: 80px;
+}
+
+.filter-field:first-child { flex: 0.6; }
+.filter-field:nth-child(2) { flex: 1.2; }
+.filter-field:nth-child(3) { flex: 0.8; }
+.filter-field:nth-child(4) { flex: 1; }
+.filter-field:nth-child(5) { flex: 0.7; }
+
+.filter-actions {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  min-width: auto;
+}
+
+.filter-count {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
 
 /* Config Form */
 .config-form fieldset {
@@ -307,3 +348,36 @@ body {
 
 /* Utility */
 .hidden { display: none; }
+
+/* Modal confirm dialog */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+
+.modal-box {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  min-width: 280px;
+  max-width: 400px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+}
+
+.modal-msg {
+  margin-bottom: 20px;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}

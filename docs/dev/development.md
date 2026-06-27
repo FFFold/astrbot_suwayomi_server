@@ -123,11 +123,13 @@ astrbot_suwayomi_server/
 
 #### `pages/dashboard/` — 管理面板前端
 
-- AstrBot Plugin Pages，通过 Bridge SDK 与后端通信
-- 单页面 3 Tab 结构：仪表盘（状态卡片 + 订阅总览 + 更新检查）、订阅管理（UMO 过滤 + 漫画名搜索 + 删除/推送）、设置（配置表单）
+- AstrBot Plugin Pages，通过 Bridge SDK 的 `postMessage` 机制与后端通信
+- 单页面 3 Tab 结构：仪表盘（状态卡片 + 订阅总览 + 更新检查）、订阅管理（五维筛选 + 删除单条订阅）、设置（配置表单）
+- 订阅表按（漫画 + UMO）展开为独立行，每行可单独删除
 - 原生 HTML/CSS/JS，零外部依赖
 - 支持 light/dark 主题（CSS 变量，由 AstrBot 自动设置 `data-theme` 属性）
 - 事件委托模式处理按钮点击，避免 XSS 风险
+- 使用自定义 DOM 弹窗（`showConfirm()`）替代原生 `confirm()`，兼容 sandbox iframe（无 `allow-modals`）
 
 ### 数据流
 

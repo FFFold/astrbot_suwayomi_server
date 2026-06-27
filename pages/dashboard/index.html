@@ -64,8 +64,36 @@
     <section id="tab-subscriptions" class="tab-content">
       <div class="section">
         <div class="filters">
-          <input type="text" class="input" id="filter-umo" placeholder="按 UMO 过滤（如 aiocqhttp:group_123）">
-          <input type="text" class="input" id="filter-title" placeholder="按漫画名搜索">
+          <div class="filter-row">
+            <div class="filter-field">
+              <label>漫画 ID</label>
+              <input type="text" class="input" id="filter-id" placeholder="ID">
+            </div>
+            <div class="filter-field">
+              <label>漫画名</label>
+              <input type="text" class="input" id="filter-title" placeholder="模糊匹配">
+            </div>
+            <div class="filter-field">
+              <label>源</label>
+              <input type="text" class="input" id="filter-source" placeholder="源名称">
+            </div>
+            <div class="filter-field">
+              <label>订阅者</label>
+              <input type="text" class="input" id="filter-umo" placeholder="UMO 关键词">
+            </div>
+            <div class="filter-field">
+              <label>推送状态</label>
+              <select class="input" id="filter-push">
+                <option value="">全部</option>
+                <option value="on">已开启</option>
+                <option value="off">未开启</option>
+              </select>
+            </div>
+            <div class="filter-field filter-actions">
+              <button class="btn btn-sm" id="btn-clear-filters" type="button">清除筛选</button>
+              <span class="filter-count" id="filter-count"></span>
+            </div>
+          </div>
         </div>
         <table class="table" id="subs-table">
           <thead>
