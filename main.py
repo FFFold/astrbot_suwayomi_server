@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import math
+import re
 import shutil
 import tempfile
 import time
@@ -16,7 +17,7 @@ from astrbot.api.event import filter, AstrMessageEvent, MessageChain
 from astrbot.api.star import Context, Star
 
 from .suwayomi.client import SuwayomiClient, SuwayomiError
-from .suwayomi.models import Chapter, Manga, SearchResult
+from .suwayomi.models import Chapter, Manga, SearchResult, Source
 from .utils.pack import pack_cbz, pack_pdf, pack_zip, parse_download_args
 from .utils.subscription import SubscriptionManager
 from .web.api import (
@@ -393,6 +394,104 @@ class SuwayomiPlugin(Star):
         except Exception as e:
             logger.error(f"[{PLUGIN_NAME}] subscribe error: {e}")
             yield event.plain_result("订阅失败，请稍后重试。")
+
+    @manga_group.command("批量订阅")
+    async def batch_subscribe(self, event: AstrMessageEvent):
+        '''批量订阅漫画。用法: /漫画 批量订阅 <名称1>, <名称2>, ... [源名]'''
+        try:
+            raw = event.message_str.strip()
+            prefix = "漫画 批量订阅"
+            if not raw.startswith(prefix):
+                yield event.plain_result("用法: 漫画 批量订阅 <名称1>, <名称2>, ... [源名]")
+                return
+            args_str = raw[len(prefix):].strip()
+            if not args_str:
+                yield event.plain_result("用法: 漫画 批量订阅 <名称1>, <名称2>, ... [源名]\n名称用逗号分隔，如: 漫画 批量订阅 咒术回战, 鬼灭之刃")
+                return
+
+            sources = await self.client.get_sources()
+            source_filter = None
+            search_str = args_str
+
+            last_space = args_str.rfind(" ")
+            if last_space > 0:
+                potential_source = args_str[last_space + 1:].lower()
+                for src in sources:
+                    if potential_source in (src.name.lower(), src.display_name.lower(), src.lang.lower()):
+                        source_filter = src
+                        search_str = args_str[:last_space]
+                        break
+
+            raw_names = [n.strip() for n in re.split(r'[,，;；]', search_str) if n.strip()]
+            if not raw_names:
+                yield event.plain_result("请提供漫画名称，用逗号分隔。")
+                return
+
+            if len(raw_names) > 20:
+                yield event.plain_result("一次最多批量订阅 20 部漫画。")
+                return
+
+            await event.send(event.plain_result(f"📚 开始批量订阅 {len(raw_names)} 部漫画..."))
+
+            umo = event.unified_msg_origin
+            existing_subs = await self.sub_mgr.get_subscriptions(umo)
+            existing_ids = {s["manga_id"] for s in existing_subs}
+
+            results: list[tuple[str, str, str]] = []
+            for i, name in enumerate(raw_names, 1):
+                await event.send(event.plain_result(f"正在处理 [{i}/{len(raw_names)}] {name}..."))
+
+                manga, error = await self._search_best_match(name, source_filter)
+                if error or manga is None:
+                    results.append((name, "fail", error or "未找到匹配结果"))
+                    continue
+
+                if manga.id in existing_ids:
+                    status_text = STATUS_EMOJI.get(manga.status, "未知")
+                    source_name = ""
+                    for src in sources:
+                        if src.id == manga.source_id:
+                            source_name = src.display_name
+                            break
+                    results.append((name, "exists", f"{manga.title} - {status_text} - {source_name}"))
+                    continue
+
+                await self.sub_mgr.subscribe(manga.id, manga.title, manga.source_id, umo)
+                existing_ids.add(manga.id)
+                try:
+                    chapters = await self._get_or_fetch_chapters(manga.id)
+                    if chapters:
+                        max_id = max(ch.id for ch in chapters)
+                        await self.sub_mgr.update_latest_chapter(manga.id, max_id)
+                except Exception as e:
+                    logger.warning(f"[{PLUGIN_NAME}] 批量订阅拉取「{manga.title}」章节失败: {e}")
+
+                status_text = STATUS_EMOJI.get(manga.status, "未知")
+                source_name = ""
+                for src in sources:
+                    if src.id == manga.source_id:
+                        source_name = src.display_name
+                        break
+                results.append((name, "ok", f"{manga.title} - {status_text} - {source_name}"))
+
+            ok_count = sum(1 for _, s, _ in results if s == "ok")
+            exist_count = sum(1 for _, s, _ in results if s == "exists")
+            fail_count = sum(1 for _, s, _ in results if s == "fail")
+
+            lines = [f"📚 批量订阅完成 ({ok_count} 新增, {exist_count} 已存在, {fail_count} 失败):"]
+            for name, status, info in results:
+                if status == "ok":
+                    lines.append(f"  ✅ {info}")
+                elif status == "exists":
+                    lines.append(f"  ⏭ {info} (已订阅)")
+                else:
+                    lines.append(f"  ❌ {name} - {info}")
+
+            yield event.plain_result("\n".join(lines))
+
+        except Exception as e:
+            logger.error(f"[{PLUGIN_NAME}] batch_subscribe error: {e}")
+            yield event.plain_result("批量订阅失败，请稍后重试。")
 
     @manga_group.command("取消订阅")
     async def unsubscribe_manga(self, event: AstrMessageEvent, manga_id_or_name: str):
