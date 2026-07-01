@@ -887,7 +887,7 @@ class SuwayomiPlugin(Star):
                 chain.append(Comp.Plain(f"... 还有 {total_pages - max_pages} 页，请使用「漫画 阅读」查看"))
 
             try:
-                await self.context.send_message(umo, MessageChain().chain(chain))
+                await self.context.send_message(umo, MessageChain(chain=chain))
             except Exception as e:
                 logger.warning(f"[{PLUGIN_NAME}] 图片推送到{umo}失败: {e}")
                 await self.context.send_message(umo, MessageChain().message(
@@ -944,7 +944,7 @@ class SuwayomiPlugin(Star):
             filename = f"{safe_title}_第{safe_label}话.{file_ext}"
             chain = [Comp.File(file=str(output_path), name=filename)]
             try:
-                await self.context.send_message(umo, MessageChain().chain(chain))
+                await self.context.send_message(umo, MessageChain(chain=chain))
             except Exception as e:
                 logger.warning(f"[{PLUGIN_NAME}] 文件推送到{umo}失败: {e}")
                 await self.context.send_message(umo, MessageChain().message(
